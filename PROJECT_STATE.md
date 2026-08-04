@@ -3,7 +3,7 @@
 **Single source of truth.** Read this first. Update it in the same commit as any
 change that alters status, a decision, or who is working on what.
 
-**Last updated:** 2026-08-04 (rev. 3) · **Phase:** P0 (documentation & environment) ·
+**Last updated:** 2026-08-04 (rev. 4) · **Phase:** P0 (documentation & environment) ·
 **Active plan:** none — [`2026-08-04-shared-core.md`](implementation_plans/2026-08-04-shared-core.md) is `PROPOSED`, awaiting sign-off
 
 ---
@@ -29,9 +29,9 @@ share.
 
 | | |
 |---|---|
-| **Code written** | `scripts/probe_env.py` only. No pipeline yet. |
+| **Code written** | `scripts/probe_env.py`, `scripts/viirs_latency.py`, `scripts/g1_byte_range.py`. No pipeline yet. |
 | **Docs written** | Complete scaffold — this file, handover, roadmap, data sources, environments, two featuredocs, one plan, one archived plan. |
-| **Next gate** | **G1: byte-range read prototype** (specified in the `PROPOSED` shared-core plan). Load-bearing for anything at 0.5 km. |
+| **Next gate** | **G1 passed** (`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`). The shared-core plan's remaining blocker is owner sign-off, not a technical unknown. |
 | **Blocked on** | Owner's decision D1 — which track leads. Not blocking P1, which is track-agnostic. |
 | **Branch** | `claude/satellite-orbit-setup-fl5q39` |
 
@@ -57,6 +57,11 @@ share.
     finding entirely.
   - Local disk is **13.3 GB free — tighter than the container's ~30 GB.**
   - C02 measured at **318–415 MB**, wider than the 376–406 MB on record.
+- **2026-08-04 (rev. 4)** — **G1 ran and passed**
+  (`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`). 0.5 km is affordable, so
+  the 2 km fallback and the ~6,600 km camera cap are not taken. The sweep produced a
+  larger result than the gate itself: **C02 chunks are full-width 6-row strips, so
+  byte cost depends on sector height alone and is indifferent to width.**
 
 ---
 
@@ -96,10 +101,17 @@ figures to `logs/2026-08-04T162813Z-environment-probe.md`.
 - **Cheapest usable frames:** mesoscale C13 (0.31 MB), then Himawari-9 B13 (~11 MB,
   bz2, 10 segments). **Most expensive:** GOES C02 — the observed range widens to
   **318–415 MB** [measured] (GOES-19 413.7/414.6, GOES-18 318.1/323.5), against the
-  376–406 MB previously recorded. Size is scene-dependent, so absolute byte
-  thresholds drift. G1's pass criterion is already expressed as a fraction of the
-  actual file (< 25%), which is the right form and needs no change — but it should
-  record absolute bytes and the granule ID alongside the ratio.
+  376–406 MB previously recorded. Two G1 granules then measured **435.4 MB**, so the
+  observed range is now **318–435 MB**. Size is scene-dependent, so absolute byte
+  thresholds drift — which is exactly why G1's criterion was a fraction of the actual
+  file, and why it held.
+- **Byte-range reads work, and cost scales with sector *height* only [measured]** —
+  `logs/2026-08-04T171354Z-experiment-g1-byte-range.md`. `CMI` is chunked
+  **(6, 21696)**: full-width 6-row strips, gzip-5 + shuffle. A 2048-row band costs
+  **54.05 MB whether it is 2048 or 21696 px wide — the same figure to the byte.**
+  Cost is **26.4 kB per row**, linear. Consequences: the fetch primitive is a
+  **row band, not a square tile**; a camera pans cheaply east–west and expensively
+  north–south; **~4096 rows is the ceiling** under the 25% criterion (24.8%).
 
 ### Environment
 
@@ -158,6 +170,7 @@ figures to `logs/2026-08-04T162813Z-environment-probe.md`.
 | — | Static assets vendored into `assets/`, not fetched at runtime | 2026-08-04 | `docs/ENVIRONMENTS.md` |
 | — | No distributed compute until a measurement demands it | 2026-08-04 | `docs/ROADMAP.md` |
 | — | Every synthesized element gets disclosed in output | 2026-08-04 | `featuredocs/` |
+| G1 | **Byte-range reads adopted.** 0.5 km is affordable — 15.7% of bytes, 15.39 s from outside AWS, pixel-exact. The 2 km `MCMIPF` fallback and ~6,600 km camera cap are **not** taken | 2026-08-04 | `logs/…-experiment-g1-byte-range.md` |
 
 ### Open
 
@@ -170,7 +183,6 @@ figures to `logs/2026-08-04T162813Z-environment-probe.md`.
 | D5 | Live/rolling stream or batch renders? | P6 | repo owner |
 | D6 | Colour source of record: GOES or Himawari? | P3 | technical |
 | D7 | Night side: GeoColor / IR-only / IR+live DNB / dark. Likely differs per track | P3 | technical |
-| G1 | Do byte-range reads make 0.5 km affordable? | P1 | technical — **prototype next** |
 
 ### Experiments specified, awaiting a run
 
@@ -178,15 +190,18 @@ Each ends in a `logs/` experiment record. See `docs/ROADMAP.md` § Evaluation di
 
 | Experiment | Specified in | Decides |
 |---|---|---|
-| **G1** — byte-range reads of C02 | shared-core plan (`PROPOSED`) | Whether 0.5 km is affordable; honest camera altitude |
 | **Hold-out interpolation** | `featuredocs/…-interpolation-and-upscaling.md` | Which method ships, and its measured cost. **Highest-value single result available.** |
 | **Night-side four-way** | `featuredocs/…-night-side-compositing.md` | D7. **Now runnable** — GeoColor's host is OPEN on this local machine. |
 | **Playback rate ladder** | `featuredocs/…-time-compression.md` | Where the terminator stops reading as an event |
 | **Mesoscale continuity** | `featuredocs/…-time-compression.md` | Whether sector repositioning breaks 24 h sequences |
 
-**Completed:** *VIIRS latency vs. revisit* —
-`logs/2026-08-04T164009Z-experiment-viirs-latency.md`. Verdict **adopt**: DNB latency
-26.8 min, removing a false constraint on D7.
+**Completed:**
+
+- *VIIRS latency vs. revisit* — `logs/2026-08-04T164009Z-experiment-viirs-latency.md`.
+  Verdict **adopt**: DNB latency 26.8 min, removing a false constraint on D7.
+- *G1 byte-range reads* — `logs/2026-08-04T171354Z-experiment-g1-byte-range.md`.
+  Verdict **adopt**: 15.7% of bytes in 15.39 s, corroborated by an independent
+  `urllib`+`zlib` path agreeing to 0.06% with 0 pixel mismatches.
 
 ---
 
@@ -202,8 +217,8 @@ colliding.
 | Documentation scaffold | — | 2026-08-04 | **done** |
 | Doc alignment to rev. 3 measurements | — | 2026-08-04 | **done** |
 | DNB latency vs. revisit | — | 2026-08-04 | **done** — see `logs/…-experiment-viirs-latency.md` |
-| G1 byte-range prototype | *unclaimed* | — | next up |
-| `src/geoearth/*` | *unclaimed* | — | blocked on G1 |
+| G1 byte-range prototype | — | 2026-08-04 | **done** — `scripts/g1_byte_range.py`, verdict PASS |
+| `src/geoearth/*` | *unclaimed* | — | **unblocked** — G1 answered; awaiting shared-core sign-off |
 | Night-side four-way experiment | *unclaimed* | — | **unblocked** — this local machine reaches every arm |
 | Hold-out interpolation experiment | *unclaimed* | — | blocked on P2 (needs frames) |
 
