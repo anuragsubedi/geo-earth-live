@@ -118,11 +118,17 @@ Experiments currently specified and awaiting a run:
 
 | Experiment | Specified in | Decides |
 |---|---|---|
-| **G1** — byte-range reads of C02 | active plan | Whether 0.5 km is affordable; camera altitude |
+| **G1** — byte-range reads of C02 | `implementation_plans/2026-08-04-shared-core.md` (`PROPOSED`) | Whether 0.5 km is affordable; camera altitude |
 | **Hold-out interpolation** | `featuredocs/2026-08-04-interpolation-and-upscaling.md` | Which interpolation method ships, and its measured cost |
-| **Night-side four-way** | `featuredocs/2026-08-04-night-side-compositing.md` | GeoColor vs. IR vs. IR+DNB vs. dark |
+| **Night-side four-way** | `featuredocs/2026-08-04-night-side-compositing.md` | GeoColor vs. IR vs. IR+DNB vs. dark. **Unblocked** — every arm reachable locally |
 | **Playback rate ladder** | `featuredocs/2026-08-04-time-compression.md` | Where the terminator stops reading as an event |
 | **Mesoscale continuity** | `featuredocs/2026-08-04-time-compression.md` | Whether sector repositioning breaks 24 h sequences |
+
+Completed:
+
+| Experiment | Record | Result |
+|---|---|---|
+| **VIIRS latency vs. revisit** | `logs/2026-08-04T164009Z-experiment-viirs-latency.md` | **Adopt.** DNB latency 26.8 min, not the 200 min previously recorded — that was a probe defect. Removes a false constraint on D7 |
 
 The **hold-out interpolation experiment is the most valuable single result the
 project can produce.** It converts "looks smooth" into a defensible number, and it is
@@ -135,12 +141,12 @@ what lets any synthesized output be published with a stated error rather than a 
 | # | Question | Gates | Notes |
 |---|---|---|---|
 | D1 | Track **sequencing** — which order, how much in parallel? | P2 | No longer a selection. Current proposal: B → A → C. |
-| D2 | Unlock EUMETSAT (Meteosat/MTG)? | P3 | Free, needs registration. Only route to Africa/Europe/India. Highest-value single unlock. |
+| D2 | Unlock EUMETSAT (Meteosat/MTG)? | P3 | Free, needs registration. Only route to Africa/Europe/India. Highest-value single unlock. Host is **blocked in the container, open locally** — so the question is registration and required-path policy, not egress. |
 | D3 | Production compute: GitHub Actions, AWS `us-east-1`, or local? | P6 | See below. |
 | D4 | Repo public? Output published? | P6 | Publishing raises the disclosure bar. |
 | D5 | Live/rolling mode, or batch renders? | P6 | Different architecture. Don't build for it prematurely. |
 | D6 | Colour source of record: GOES or Himawari? | P3 | Himawari has a real green band; GOES needs a synthetic one. |
-| D7 | Night-side treatment | P3 | Four options open — see the featuredoc. Likely differs per track. |
+| D7 | Night-side treatment | P3 | Four options open — see the featuredoc. Likely differs per track. All four arms are now runnable locally, and DNB latency is measured at ~27 min, so freshness is not a discriminator. |
 
 ---
 
@@ -185,3 +191,7 @@ cleanly by time segment — parallelism, not distribution.
   animation is a legitimate expression of the goal rather than a fallback. All three
   tracks moved in scope; D1 changed from selection to sequencing. Evaluation
   discipline added.
+- **2026-08-04 (rev. 3)** — First local probe: all hosts open, so the night-side
+  four-way is unblocked and D2 reduces to registration plus required-path policy.
+  First completed experiment recorded (VIIRS latency). Corrected the experiments
+  table, which pointed at "active plan" when no plan is `ACTIVE`.

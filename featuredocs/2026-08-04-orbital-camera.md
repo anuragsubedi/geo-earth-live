@@ -156,9 +156,19 @@ observes city lights, moonlit cloud and aurora *live* — unlike GeoColor's stat
 city-lights reference layer. Night side from live DNB plus IR cloud structure
 would be more honest than the standard off-the-shelf composite, not less.
 
-Caveat: DNB revisit is ~12 h and its measured publication latency was anomalously
-long (200 min on 2026-08-04). Night side is a Phase-2 concern; v1 can fly daylit
+Caveat: DNB revisit is ~12 h, and any given GEO night frame can be **up to ~7 hours**
+from the DNB pass lighting it — different sensor, different viewing geometry. DNB also
+images cloud by reflected *moonlight*, so its detail varies over the lunar cycle and
+largely vanishes near new moon. Night side is a Phase-2 concern; v1 can fly daylit
 arcs, which is also what makes the resolution budget work.
+
+> **Correction (2026-08-04).** This paragraph previously cited DNB publication latency
+> as "anomalously long (200 min)". **That figure was wrong** — an artifact of an
+> unpaginated S3 listing in our own probe, not a property of the data. Measured
+> properly, DNB publishes at **26.8 min median**, marginally *faster* than the M-bands
+> (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`). The conclusion above is
+> unchanged, because it never rested on latency: revisit, temporal offset and lunar
+> phase are what defer night side to Phase 2.
 
 ---
 
@@ -167,7 +177,7 @@ arcs, which is also what makes the resolution budget work.
 | Option | Verdict |
 |---|---|
 | **Synthetic camera over live GEO texture** | **Chosen.** Matches the goal, exact motion, no frame interpolation in v1, uses the cadence GEO is good at. |
-| Real LEO imagery (VIIRS swaths) stitched into motion | Genuinely observed motion and 375 m detail, but push-broom strips are not a flyover, revisit is 12 h, and latency ~36 min. **Track C** — a different, also-beautiful product, pursued in parallel. |
+| Real LEO imagery (VIIRS swaths) stitched into motion | Genuinely observed motion and 375 m detail, but push-broom strips are not a flyover, revisit is 12 h, and publication latency ~27–30 min [measured]. **Track C** — a different, also-beautiful product, pursued in parallel. |
 | GEO daily summary, sped up | The inherited plan. **Track B**, pursued in parallel and sequenced *first* — it is the shortest path to moving pictures, and it carries the project's only analysis component. Shares most infrastructure with this. |
 | Frame-interpolate GEO to 30 fps in place | Produces a smooth *static* disk. Solves the wrong problem — smoothness was never what made ORBIT compelling. |
 | Wait for / build a real LEO video satellite | $10–80M and years. Out of scope, documented in `featuredocs/2026-08-04-orbit-selection.md`. |
@@ -205,3 +215,10 @@ output. This is the price of admission for synthesizing imagery.
 ## Revisions
 
 - **2026-08-04** — Created.
+- **2026-08-04 (rev. 2)** — Retracted the "DNB publication latency is anomalously long
+  (200 min)" caveat: that number came from a defect in `scripts/probe_env.py`, not
+  from the data. Measured latency is 26.8 min
+  (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`). The Phase-2 deferral of the
+  night side stands on revisit, temporal offset and lunar phase, which is what it
+  should have rested on in the first place. VIIRS latency in the options table
+  corrected to ~27–30 min.

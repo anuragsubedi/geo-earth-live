@@ -17,7 +17,7 @@ terminator crossings, night passes.
 **"Quasi-live" is rhetorical, not literal.** A real-time feed would be unwatchable —
 one frame per 600 s, and weather barely moves at 1×. A sped-up animation is a
 legitimate expression of the goal, not a fallback from it. Latency still matters and
-is good (~4.6 min Himawari-9, ~8 min GOES-19), but it is a secondary quality.
+is good (3.6–5.1 min Himawari-9, ~8 min GOES-19), but it is a secondary quality.
 
 **All three tracks are in scope** and pursued in parallel (`docs/ROADMAP.md`). The
 open question is sequencing, not selection. The near-term plan builds what all three
@@ -31,7 +31,7 @@ share.
 |---|---|
 | **Code written** | `scripts/probe_env.py` only. No pipeline yet. |
 | **Docs written** | Complete scaffold — this file, handover, roadmap, data sources, environments, two featuredocs, one plan, one archived plan. |
-| **Next gate** | **G1: byte-range read prototype** (see the active plan). Load-bearing for anything at 0.5 km. |
+| **Next gate** | **G1: byte-range read prototype** (specified in the `PROPOSED` shared-core plan). Load-bearing for anything at 0.5 km. |
 | **Blocked on** | Owner's decision D1 — which track leads. Not blocking P1, which is track-agnostic. |
 | **Branch** | `claude/satellite-orbit-setup-fl5q39` |
 
@@ -47,10 +47,16 @@ share.
   alternatives (GeoColor, upscaling, interpolation) restored as things to *evaluate*
   rather than discard. Mesoscale 60-second cadence measured. Three featuredocs added
   (time compression, interpolation/upscaling, night-side compositing).
-- **2026-08-04 (rev. 3)** — **First local-machine probe.** Fixed a defect in
-  `scripts/probe_env.py` that reported a broken local CA bundle as a total egress
-  block. All 23 hosts are OPEN locally, unblocking the D2 and D7 experiments. Local
-  disk is **13.3 GB free — tighter than the container's ~30 GB.**
+- **2026-08-04 (rev. 3)** — **First local-machine probe**, plus two defect fixes in
+  `scripts/probe_env.py` and a documentation pass aligning every doc to the result.
+  - Reported a broken local CA bundle as a total egress block (TLS failure ≠ policy
+    denial). Fixed; all 23 hosts are OPEN locally, unblocking the D2 and D7
+    experiments.
+  - Never paginated S3 listings, so VIIRS freshness was read off the *oldest* 1000
+    keys of a flat daily prefix. Fixed; this retracts the "DNB is anomalously stale"
+    finding entirely.
+  - Local disk is **13.3 GB free — tighter than the container's ~30 GB.**
+  - C02 measured at **318–415 MB**, wider than the 376–406 MB on record.
 
 ---
 
@@ -65,14 +71,20 @@ figures to `logs/2026-08-04T162813Z-environment-probe.md`.
   all anonymous on AWS S3, 10-minute full disk.
 - **Reachable LEO:** VIIRS on NOAA-21, NOAA-20, Suomi-NPP — 375 m I-bands,
   750 m M-bands, plus the day-night band for live city lights.
-- **Latency [measured]:** Himawari-9 **4.6 min** (**3.6 min** on the local re-probe);
-  GOES-19 **~8 min** from scan start (~17 s after scan end); VIIRS M-band **~36 min**.
-- **VIIRS DNB newest object was 249 min old [measured, local probe].** That number is
-  *not* established as publication latency — for a polar orbiter it may just be
-  orbital revisit, since DNB granules only exist over the night side. It matters
-  because D7's "live city lights" option depends on which it is. **Measure before
-  relying on it:** compare a granule's `c`-timestamp to its `d`/`t` observation time,
-  which separates the two. Until then, treat "live DNB" as unquantified.
+- **Latency [measured]:** Himawari-9 **3.6–5.1 min** across three probes; GOES-19
+  **~8 min** from scan start (~17 s after scan end); VIIRS **~27–30 min** publication
+  latency. All are observation → available in S3; for the polar orbiters that is
+  distinct from the ~12 h revisit gap.
+- **VIIRS latency, resolved [measured]** —
+  `logs/2026-08-04T164009Z-experiment-viirs-latency.md`. Publication latency is
+  **DNB 26.8 min, M5 30.3 min** (medians), neither with a coverage gap over 5 min.
+  **DNB is marginally faster than M5**, so freshness is no obstacle to D7's live
+  city lights. The binding constraints there remain temporal offset (~7 h) and lunar
+  phase.
+  - The earlier "200 / 249 min stale" figures were **a defect in our own probe**,
+    which listed only the first 1000 keys of a flat daily prefix. Corrected, and the
+    lesson generalizes: **age of the newest object ≠ publication latency**, and two
+    runs of the same buggy tool are not corroboration.
 - **The coverage gap:** nothing reachable between roughly **20°W and 100°E** —
   Africa, Europe, the Middle East, India. That is Meteosat/FY-4 territory. It is
   the single most consequential constraint in the project (decision D2).
@@ -83,10 +95,11 @@ figures to `logs/2026-08-04T162813Z-environment-probe.md`.
   follow weather, so geolocation must be read per granule.
 - **Cheapest usable frames:** mesoscale C13 (0.31 MB), then Himawari-9 B13 (~11 MB,
   bz2, 10 segments). **Most expensive:** GOES C02 — the observed range widens to
-  **318–414 MB** with the local probe (GOES-19 **413.74 MB**, GOES-18 **318.13 MB**
-  [measured]), above the 376–406 MB the shared-core plan quotes. Size varies with
-  scene compressibility, so **G1's pass threshold must be a fraction of the actual
-  file, not a fixed byte count.**
+  **318–415 MB** [measured] (GOES-19 413.7/414.6, GOES-18 318.1/323.5), against the
+  376–406 MB previously recorded. Size is scene-dependent, so absolute byte
+  thresholds drift. G1's pass criterion is already expressed as a fraction of the
+  actual file (< 25%), which is the right form and needs no change — but it should
+  record absolute bytes and the granule ID alongside the ratio.
 
 ### Environment
 
@@ -141,7 +154,7 @@ figures to `logs/2026-08-04T162813Z-environment-probe.md`.
 | — | "Quasi-live" is rhetorical — sped-up animation is a legitimate expression of the goal | 2026-08-04 | `docs/ROADMAP.md` |
 | — | All three tracks explored in parallel; open question is sequencing, not selection | 2026-08-04 | `docs/ROADMAP.md` |
 | — | Exploration must end in a reviewable `logs/` **experiment record**, not an opinion | 2026-08-04 | `logs/README.md` |
-| — | Build the shared core before committing effort to any one track | 2026-08-04 | active plan |
+| — | Build the shared core before committing effort to any one track | 2026-08-04 | `implementation_plans/2026-08-04-shared-core.md` |
 | — | Static assets vendored into `assets/`, not fetched at runtime | 2026-08-04 | `docs/ENVIRONMENTS.md` |
 | — | No distributed compute until a measurement demands it | 2026-08-04 | `docs/ROADMAP.md` |
 | — | Every synthesized element gets disclosed in output | 2026-08-04 | `featuredocs/` |
@@ -165,12 +178,15 @@ Each ends in a `logs/` experiment record. See `docs/ROADMAP.md` § Evaluation di
 
 | Experiment | Specified in | Decides |
 |---|---|---|
-| **G1** — byte-range reads of C02 | active plan | Whether 0.5 km is affordable; honest camera altitude |
+| **G1** — byte-range reads of C02 | shared-core plan (`PROPOSED`) | Whether 0.5 km is affordable; honest camera altitude |
 | **Hold-out interpolation** | `featuredocs/…-interpolation-and-upscaling.md` | Which method ships, and its measured cost. **Highest-value single result available.** |
 | **Night-side four-way** | `featuredocs/…-night-side-compositing.md` | D7. **Now runnable** — GeoColor's host is OPEN on this local machine. |
 | **Playback rate ladder** | `featuredocs/…-time-compression.md` | Where the terminator stops reading as an event |
 | **Mesoscale continuity** | `featuredocs/…-time-compression.md` | Whether sector repositioning breaks 24 h sequences |
-| **DNB latency vs. revisit** | this file, § Data | Whether "live city lights" is viable for D7. Cheap; a prerequisite for the four-way's DNB arm |
+
+**Completed:** *VIIRS latency vs. revisit* —
+`logs/2026-08-04T164009Z-experiment-viirs-latency.md`. Verdict **adopt**: DNB latency
+26.8 min, removing a false constraint on D7.
 
 ---
 
@@ -181,12 +197,14 @@ colliding.
 
 | Module / task | Claimed by | Since | Status |
 |---|---|---|---|
-| `scripts/probe_env.py` | — | 2026-08-04 | **done** — TLS-classification fix landed rev. 3 |
+| `scripts/probe_env.py` | — | 2026-08-04 | **done** — TLS-classification and pagination fixes landed rev. 3 |
+| `scripts/viirs_latency.py` | — | 2026-08-04 | **done** |
 | Documentation scaffold | — | 2026-08-04 | **done** |
+| Doc alignment to rev. 3 measurements | — | 2026-08-04 | **done** |
+| DNB latency vs. revisit | — | 2026-08-04 | **done** — see `logs/…-experiment-viirs-latency.md` |
 | G1 byte-range prototype | *unclaimed* | — | next up |
 | `src/geoearth/*` | *unclaimed* | — | blocked on G1 |
 | Night-side four-way experiment | *unclaimed* | — | **unblocked** — this local machine reaches every arm |
-| DNB latency vs. revisit | *unclaimed* | — | ready; cheap, gates the four-way's DNB arm |
 | Hold-out interpolation experiment | *unclaimed* | — | blocked on P2 (needs frames) |
 
 ---

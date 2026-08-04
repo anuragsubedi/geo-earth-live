@@ -147,3 +147,11 @@ time they are and that cloud detail depends on moonlight.
 
 - **2026-08-04** — Created. Corrects an overstatement made earlier in session — live
   DNB reduces but does not eliminate the night-side disclosure.
+- **2026-08-04 (rev. 2)** — **The four-way experiment is unblocked.** A local probe
+  reaches every arm, including GeoColor's `cdn.star.nesdis.noaa.gov`
+  (`logs/2026-08-04T163938Z-environment-probe.md`). Separately, DNB publication
+  latency is measured at **26.8 min**, marginally faster than the M-bands
+  (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`), so **freshness is not a
+  discriminator between the options** — the ~7 h temporal offset and lunar-phase
+  dependence recorded above are, and both are unchanged. Option 1 remains
+  container-unreachable and therefore off the required path.

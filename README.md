@@ -18,7 +18,7 @@ moves. The reference video's appeal comes from *orbital velocity*, not from real
 observation. So a **sped-up animation is a legitimate expression of the goal, not a
 fallback from it.**
 
-Latency still matters and is genuinely good: **~4.6 minutes** from Himawari-9,
+Latency still matters and is genuinely good: **3.6–5.1 minutes** from Himawari-9,
 **~8 minutes** from GOES-19 [measured]. That is what makes "today's weather" possible
 rather than "last week's." It is a secondary quality, not the definition of success.
 
@@ -54,10 +54,13 @@ Anonymous, no credentials, no cost:
 
 | Source | Slot / orbit | Cadence | Latency [measured] |
 |---|---|---|---|
-| **Himawari-9** (AHI) | 140.7°E | 10 min full disk | **4.6 min** |
+| **Himawari-9** (AHI) | 140.7°E | 10 min full disk | **3.6–5.1 min** |
 | **GOES-19** (ABI) | 75.2°W | 10 min full disk | **~8 min** |
 | **GOES-18** (ABI) | 137.0°W | 10 min full disk | ~8 min |
-| **VIIRS** ×3 (NOAA-21/20, S-NPP) | sun-sync, ~824 km | ~12 h revisit | ~36 min |
+| **VIIRS** ×3 (NOAA-21/20, S-NPP) | sun-sync, ~824 km | ~12 h revisit | ~27–30 min |
+
+Latency is **observation → available in S3**, which for the polar orbiters is
+separate from the ~12 h revisit gap. Measured in `logs/`.
 
 Together the GEO trio covers the Americas and the Pacific. **Nothing reachable
 covers roughly 20°W to 100°E** — Africa, Europe, the Middle East, India. That gap is
@@ -72,8 +75,13 @@ python3 scripts/probe_env.py --json     # always run this first, in any environm
 
 Stdlib only, so it works before anything is installed. It writes a timestamped
 capability report to `logs/` — machine facts, host reachability, live data freshness.
-Reachability differs between the cloud container and a local machine, and every
+Reachability differs sharply between the cloud container and a local machine — the
+container filters egress by policy, a local machine generally doesn't — and every
 other document here depends on knowing which you're in.
+
+**Check the report's `tls_trust_store` line before believing it.** If TLS
+verification fails, the run marks itself untrustworthy and must not be recorded as
+evidence: a broken CA bundle is not an egress block.
 
 Then:
 

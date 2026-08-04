@@ -8,7 +8,7 @@ to be read cold, with no prior context.
 
 ## You are working on: geo-earth-live
 
-A **quasi-live feed of Earth built from real satellite data**, aiming for the feel
+A **quasi-live feed of Earth built from real satellite data**, inspired by the feel
 of Seán Doran's *ORBIT — A Journey Around Earth in Real Time*: motion, curvature,
 terminator crossings, night passes.
 
@@ -29,47 +29,45 @@ reclaimed.
 
 ## Where things live
 
-| Path | Contains |
-|---|---|
-| `PROJECT_STATE.md` | Single source of truth. Status, facts, decisions, claims. |
-| `docs/DATA_SOURCES.md` | Every satellite source: reachability, cadence, measured sizes and latency. |
-| `docs/ROADMAP.md` | Three candidate tracks, phases, decision points, compute strategy. |
-| `docs/ENVIRONMENTS.md` | Cloud vs. local differences, egress policy, portability rules. |
-| `featuredocs/` | Dated design rationale. Why, not what. `TEMPLATE.md` for new ones. |
-| `implementation_plans/` | What is being built, with definitions of done. `archive/` for superseded. |
-| `logs/` | Probe reports and run records. **Committed** — this is project memory. |
-| `assets/` | Vendored static data (coastlines, base maps). Committed on purpose. |
-| `scripts/` | Standalone utilities. |
-| `src/geoearth/` | The pipeline. Does not exist yet. |
+| Path                      | Contains                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `PROJECT_STATE.md`      | Single source of truth. Status, facts, decisions, claims.                    |
+| `docs/DATA_SOURCES.md`  | Every satellite source: reachability, cadence, measured sizes and latency.   |
+| `docs/ROADMAP.md`       | Three candidate tracks, phases, decision points, compute strategy.           |
+| `docs/ENVIRONMENTS.md`  | Cloud vs. local differences, egress policy, portability rules.               |
+| `featuredocs/`          | Dated design rationale. Why, not what.`TEMPLATE.md` for new ones.          |
+| `implementation_plans/` | What is being built, with definitions of done.`archive/` for superseded.   |
+| `logs/`                 | Probe reports and run records.**Committed** — this is project memory. |
+| `assets/`               | Vendored static data (coastlines, base maps). Committed on purpose.          |
+| `scripts/`              | Standalone utilities.                                                        |
+| `src/geoearth/`         | The pipeline. Does not exist yet.                                            |
 
 ## The seven things that will trip you up
 
-1. **Egress is filtered in the cloud container.** `*.s3.amazonaws.com`, PyPI and
-   GitHub are open. NOAA STAR CDN, NHC, EUMETSAT, NASA GIBS, DSCOVR/EPIC, Celestrak
-   and Natural Earth are **blocked by organization policy**. A `403` at CONNECT is a
-   policy decision — **record it, never route around it.** A `404` from an S3 host
-   is not a block; the bucket name is wrong.
-
+1. **Egress is filtered in the cloud container — and only there.** `*.s3.amazonaws.com`,
+   PyPI and GitHub are open. NOAA STAR CDN, NHC, EUMETSAT, NASA GIBS, DSCOVR/EPIC,
+   Celestrak and Natural Earth are **blocked by organization policy**. A `403` at
+   CONNECT is a policy decision — **record it, never route around it.** A `404` from
+   an S3 host is not a block; the bucket name is wrong. **A TLS verification failure
+   is not a block either** — it is a broken CA bundle, and reporting it as BLOCKED is
+   a mistake this project has already made once. On a local machine nothing is
+   blocked, which does **not** promote those hosts to the required path (see 2).
+   Trust `scripts/probe_env.py` only when its `tls_trust_store` line resolved.
 2. **The required path must use only S3 + PyPI.** Anything else is an optional
    enhancement with a reachable fallback. This is exactly what killed the inherited
    plan, whose pixels came from a blocked CDN.
-
 3. **UTC everywhere, and the path conventions differ.** GOES partitions by
    **day-of-year** (`ABI-L2-CMIPF/YYYY/DDD/HH/`); Himawari by calendar date and scan
    minute (`AHI-L1b-FLDK/YYYY/MM/DD/HHMM/`). Unit-test the conversions. This is
    where silent off-by-one-hour bugs live.
-
 4. **Never hold the frame set in memory.** One decoded 5424² RGB frame is 88 MB; a
    float32 band array is 118 MB. Fine alone, fatal in bulk. Process one, write it,
    release it. Target peak RSS under 1.5 GB.
-
 5. **Disk is not free.** The container has ~30 GB. A day of GOES C02 at 10-minute
    cadence is ~55 GB and **will not fit**. Stream and discard; enforce a cache budget.
-
 6. **Gaps are normal, not exceptional.** Build the expected timestamp list, fetch
    what exists, log what is missing. Outages cluster around local midnight near the
    equinoxes (solar keep-out) and during calibration. Never crash on a gap.
-
 7. **Colocate with the data.** All NOAA buckets are in `us-east-1`. That single fact
    is worth more than any amount of parallelism. The job is I/O-bound; do not reach
    for a cluster.
@@ -113,10 +111,18 @@ introduced a defect, not a feature.
 Rather than trusting this paragraph, read `PROJECT_STATE.md` — it is maintained;
 this section is a snapshot.
 
-As of **2026-08-04**: documentation scaffold complete, `scripts/probe_env.py` is the
-only code, no pipeline exists. The next concrete task is **G1 — prove or kill
-byte-range reads of GOES C02 via `h5py` + `fsspec`**, which determines whether
-0.5 km imagery is affordable and therefore what camera altitude is honest.
+As of **2026-08-04**: documentation scaffold complete; the only code is
+`scripts/probe_env.py` and `scripts/viirs_latency.py`; no pipeline exists. The next
+concrete task is **G1 — prove or kill byte-range reads of GOES C02 via `h5py` +
+`fsspec`**, which determines whether 0.5 km imagery is affordable and therefore what
+camera altitude is honest.
+
+**Two published numbers have already turned out to be defects in our own probe**, not
+properties of the data — a missing CA bundle read as a total egress block, and an
+unpaginated S3 listing that made VIIRS DNB look 7× staler than it is. Both are fixed
+and recorded. The habit worth inheriting: **cross-check any load-bearing number by a
+second method that shares no code with the first.** Two runs of the same tool
+agreeing is not corroboration.
 
 **All three tracks are in scope and explored in parallel** (`docs/ROADMAP.md`); the
 open question is sequencing, not selection. "Quasi-live" is rhetorical — a sped-up
@@ -125,6 +131,8 @@ animation is a legitimate expression of the goal, not a fallback.
 **Exploration must produce reviewable results, not opinions.** Every exploratory
 branch ends in a `logs/` experiment record: what was compared, cost, quality
 (measured where measurable), the disclosure each option would require, and a verdict.
-"Defer" is a valid verdict. Five experiments are already specified and unclaimed —
-see `PROJECT_STATE.md`. One of them, the night-side four-way, **needs a local machine**,
-because the GeoColor arm depends on a host blocked in the container.
+"Defer" is a valid verdict. Four experiments remain specified and unclaimed — see
+`PROJECT_STATE.md`. The night-side four-way used to need a local machine for its
+GeoColor arm; **on a local machine every arm is now reachable [measured]**, so it is
+runnable today. One experiment is already complete: VIIRS latency
+(`logs/2026-08-04T164009Z-experiment-viirs-latency.md`).

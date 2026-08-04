@@ -52,7 +52,8 @@ full-disk scan bottleneck: along-track time *is* the scan, and a granule is ~85
 seconds. The 10-minute cadence ceiling that defines GEO simply does not exist here.
 
 *Available to us today:* VIIRS on Suomi-NPP, NOAA-20, NOAA-21 — all reachable
-(`docs/DATA_SOURCES.md`). LTAN 13:25, 375 m I-bands, ~36 min latency.
+(`docs/DATA_SOURCES.md`). LTAN 13:25, 375 m I-bands, **~27–30 min publication
+latency [measured]** — distinct from the ~12 h revisit gap.
 
 ### Dawn–dusk sun-synchronous — the extreme case
 
@@ -169,3 +170,7 @@ Two concrete follow-ons for source selection:
 
 - **2026-08-04** — Created, from analysis in the inherited session plus this
   session's reachability probe.
+- **2026-08-04 (rev. 2)** — VIIRS latency corrected to ~27–30 min publication latency
+  [measured], and distinguished from the ~12 h revisit gap. The earlier "~36 min" came
+  from an unpaginated listing that conflated the two
+  (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`).

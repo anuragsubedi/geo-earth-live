@@ -4,11 +4,24 @@ Living catalog of satellite imagery we can build from. Every number marked
 **[measured]** came from a probe in `logs/`; everything else is documentation or
 estimate and is labelled as such.
 
-**Reachability is environment-specific.** The verdicts below are from
-`logs/2026-08-04T153908Z-environment-probe.md`, taken in the cloud container.
-On a local machine most "blocked" entries are expected to be open. Re-run
+**Reachability is environment-specific.** Every "blocked" verdict below means
+*blocked in the cloud container* (`logs/2026-08-04T153908Z-environment-probe.md`).
+**On a local machine none of them are blocked** — a probe on 2026-08-04 returned 200
+for all 23 hosts, including every host the container denies
+(`logs/2026-08-04T163938Z-environment-probe.md`). Re-run
 `python3 scripts/probe_env.py` before relying on this file. See
 `docs/ENVIRONMENTS.md`.
+
+> **This does not promote blocked sources to the required path.** Production may run
+> in the container, so S3 + PyPI remains the only guaranteed substrate. What local
+> reachability buys is the ability to *evaluate* those sources now (D2, D7).
+
+> **Two figures in earlier revisions of this file were wrong**, both from probe
+> defects rather than from the data. VIIRS DNB was never "anomalously stale"
+> (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`), and a local report once
+> claimed every host was blocked when a CA bundle was missing. Both are fixed.
+> **Age of the newest object is not publication latency** — for a polar orbiter it is
+> latency *plus* revisit gap. Use `scripts/viirs_latency.py` for the former.
 
 ---
 
@@ -22,7 +35,7 @@ This is the highest-cadence, lowest-latency imagery available to us by a wide ma
 | **GOES-19** (GOES-East) | 75.2°W | ABI, 16 bands | 10 min (Mode 6) | `noaa-goes19` | **yes** |
 | **GOES-18** (GOES-West) | 137.0°W | ABI, 16 bands | 10 min | `noaa-goes18` | **yes** |
 | **Himawari-9** | 140.7°E | AHI, 16 bands | 10 min | `noaa-himawari9` | **yes** |
-| Meteosat-12 / MTG-I1 | 0° | FCI | 10 min | EUMETSAT Data Store | **no** (blocked; needs account) |
+| Meteosat-12 / MTG-I1 | 0° | FCI | 10 min | EUMETSAT Data Store | **no** (needs account; host blocked in container, open locally) |
 | FY-4B | 105°E | AGRI | 15 min | NSMC (China) | **no** |
 
 ### Coverage and the gap that matters
@@ -51,7 +64,7 @@ one 10-minute frame:
 | Band | Wavelength | Native res | Size/frame |
 |---|---|---|---|
 | C01 (blue) | 0.47 µm | 1 km | 73.6 MB |
-| **C02 (red)** | 0.64 µm | **0.5 km** | **376–406 MB** |
+| **C02 (red)** | 0.64 µm | **0.5 km** | **318–415 MB** |
 | C03 (veggie NIR) | 0.86 µm | 1 km | 83.8 MB |
 | C07 (shortwave IR) | 3.9 µm | 2 km | 25.2 MB |
 | C13 (clean longwave IR) | 10.3 µm | 2 km | 22.7 MB |
@@ -60,6 +73,13 @@ one 10-minute frame:
 | `FDCF` (fire/hotspot L2) | — | 2 km | 1.7 MB |
 
 Full-disk fixed grid: 5424² at 2 km, 10848² at 1 km, 21696² at 0.5 km.
+
+**C02 size varies with the scene, so treat it as a range, not a constant.** Across
+probes on 2026-08-04 the observed span was **318–415 MB** — GOES-19 413.7 and
+414.6 MB, GOES-18 318.1 and 323.5 MB. These files are internally compressed, so a
+cloudier or higher-contrast disk costs more bytes, and GOES-18's Pacific disk is
+consistently cheaper than GOES-19's. **Any budget or threshold expressed in absolute
+bytes will drift; express it as a fraction of the actual file** (as gate G1 does).
 
 **Publication latency [measured]:** a scan starting 14:00:20Z ended 14:09:51Z and its
 objects appeared in S3 at **14:10:08Z — about 17 seconds after scan end**, ~10 minutes
@@ -72,7 +92,7 @@ ABI does not only scan full disks. **[measured]** for
 
 | Product | Coverage | Cadence | Frames/hour | C13 size | C02 size |
 |---|---|---|---|---|---|
-| `CMIPF` full disk | hemisphere | 600 s | 6 | 22.7 MB | 376–406 MB |
+| `CMIPF` full disk | hemisphere | 600 s | 6 | 22.7 MB | 318–415 MB |
 | `CMIPC` CONUS | ~5000×3000 km | **300 s** | 12 | ~11.6 MB | — |
 | **`CMIPM1` / `CMIPM2` mesoscale** | ~1000×1000 km each | **60 s** | **60 each** | **0.31 MB** | **4.4 MB** |
 
@@ -96,14 +116,20 @@ night over a static VIIRS city-lights layer) at `cdn.star.nesdis.noaa.gov`, in s
 from 339² to 21696². At ~2–4 MB for 5424², a full day is ~430 MB — an order of
 magnitude cheaper than compositing from netCDF, and operational quality.
 
-**Blocked in the cloud container; expected to work on a local machine.** It remains a
-legitimate and fast route to a presentable product, and it is the inherited plan's
-choice. Treated as one of four open night-side options in
+**Blocked in the cloud container; confirmed reachable (200) on a local machine
+2026-08-04.** It remains a legitimate and fast route to a presentable product, and it
+is the inherited plan's choice. Treated as one of four open night-side options in
 `featuredocs/2026-08-04-night-side-compositing.md`. Its cost is the disclosure that
 the city lights are a static database rather than observation.
 
+Because the host answers locally, **the night-side four-way experiment is runnable
+today** — it was the one experiment gated on a local machine. It cannot become a
+required-path dependency while production may run in the container.
+
 **Himawari-9 is the efficiency winner [measured]:** AHI L1b full disk is delivered as
-**10 bzip2-compressed segments** per band, and the newest frame was **4.6 minutes** old.
+**10 bzip2-compressed segments** per band. Newest-frame age across three probes:
+**4.6, 3.6 and 5.1 minutes** — consistent with a 10-minute scan plus a few minutes of
+publication, and the best latency of any source here.
 
 | Band | Res | Size/segment | Size/frame (×10) |
 |---|---|---|---|
@@ -148,9 +174,26 @@ as separate per-band SDR products (`VIIRS-M1-SDR` … `VIIRS-M16-SDR`, `VIIRS-I1
 - **DNB (day-night band): 750 m** — near-constant contrast, sensitive enough to image
   **city lights, moonlit cloud, aurora, and fires at night.**
 
-**[measured]** NOAA-21 M5 granule: 9.16–9.76 MB, newest **36 minutes** old. DNB granule:
-9.15 MB, but the newest was **200 minutes** old on this probe — anomalously stale
-compared to M-bands. Re-measure before designing around DNB latency.
+**[measured]** `logs/2026-08-04T164009Z-experiment-viirs-latency.md`, NOAA-21,
+UTC day 2026-08-04, from granule filename timestamps (no downloads):
+
+| Product | Granules/day | **Publication latency (median)** | min–max | Coverage gaps > 5 min |
+|---|---|---|---|---|
+| `VIIRS-DNB-SDR` | 691 | **26.8 min** | 10.9 – 57.0 | none |
+| `VIIRS-M5-SDR` | 666 | **30.3 min** | 11.1 – 57.0 | none |
+
+Granule sizes are variable: M5 observed at 3.93–9.76 MB, DNB at 8.61–9.15 MB.
+
+> **Correction.** Earlier revisions of this file said the newest DNB object was
+> **200 minutes** old and called it "anomalously stale… re-measure before designing
+> around DNB latency." That was a defect in `probe_env.py`, which listed only the
+> first 1000 keys of a flat daily prefix and so never saw the newest granule. **DNB
+> is marginally *faster* than M5 and publishes continuously.** The re-measure
+> instruction is discharged.
+>
+> The general lesson is worth carrying: **age of the newest object ≠ publication
+> latency.** For a polar orbiter, age is latency *plus* the revisit gap. Use
+> `scripts/viirs_latency.py` when you need latency alone.
 
 ### Why DNB is strategically important
 
@@ -164,6 +207,11 @@ It **reduces** the disclosure rather than removing it. VIIRS's night pass is nea
 observation lighting it, from a different sensor and viewing geometry. And DNB images
 cloud by reflected *moonlight*, so its cloud detail varies over the lunar cycle and
 largely vanishes near new moon.
+
+**Latency is not among its problems** — ~27 min, measured. Note that *continuous
+publication* is not *continuous coverage of a given place*: granules appear all day,
+but revisit at any single point is still ~12 h per satellite. The binding constraints
+on live city lights are **temporal offset and lunar phase**, not freshness.
 
 Better, not caveat-free. Fully worked through, alongside the other three night-side
 options, in `featuredocs/2026-08-04-night-side-compositing.md`.
@@ -181,7 +229,7 @@ persistent view. LEO gives you *resolution and genuine motion*; GEO gives you
 | Source | What it uniquely offers | Blocker |
 |---|---|---|
 | **DSCOVR / EPIC** (Sun–Earth L1) | The **always-fully-lit** full disk. Zero night side, zero eclipse, ever — the only geometry that fully dissolves the darkness problem. 10 narrowband channels, 2048². | `epic.gsfc.nasa.gov` blocked. ~13–22 images/day and 12–36 h latency make it archival, not live. Also available via `api.nasa.gov`. |
-| **Meteosat-12 / MTG-I1** (0°) | Fills the Africa/Europe/India gap. FCI, 10-min full disk, 500 m VIS. | EUMETSAT Data Store: free but requires registration; host blocked in container. **Highest-value unlock in this table.** |
+| **Meteosat-12 / MTG-I1** (0°) | Fills the Africa/Europe/India gap. FCI, 10-min full disk, 500 m VIS. | EUMETSAT Data Store: free but requires registration. Host blocked in container, **reachable locally [measured]** — so registration, not egress, is now the only barrier. **Highest-value unlock in this table.** |
 | **Arktika-M1 / M2** | Molniya orbit (12 h, i=63.4°, apogee ~40,000 km). GEO-class full-hemisphere imaging **of the Arctic**, which no GEO satellite can see. Range varies from perigee to apogee, so Earth naturally zooms. | Roshydromet distribution; not on AWS; practical access unclear. |
 | **FY-4B** (105°E) | Also fills part of the gap. AGRI, 15 min. | NSMC portal, registration, blocked. |
 | **Sentinel-3 OLCI** | 300 m, 1270 km swath, 10:00 LTAN — better-lit than VIIRS's 13:25. | Copernicus/EUMETSAT; blocked. |
@@ -192,9 +240,12 @@ persistent view. LEO gives you *resolution and genuine motion*; GEO gives you
 
 ## Ancillary data
 
-| Need | Preferred source | Status | Fallback |
+Status column is **container** reachability; all four hosts answer locally
+[measured]. The fallbacks stand regardless — see the note below.
+
+| Need | Preferred source | Status (container) | Fallback |
 |---|---|---|---|
-| Coastlines / borders / graticule | Natural Earth vectors | host **blocked** | **Vendor into `assets/`** — small, static, versioned. Do this regardless; it removes a network dependency from rendering. |
+| Coastlines / borders / graticule | Natural Earth vectors | **blocked** | **Vendor into `assets/`** — small, static, versioned. Do this regardless; it removes a network dependency from rendering. |
 | Global base map (land/ocean under clouds) | NASA GIBS Blue Marble | **blocked** | Vendor a single downsampled BMNG tile set into `assets/`. Static by nature, so vendoring costs nothing in freshness. |
 | Tropical cyclone positions | `nhc.noaa.gov/CurrentStorms.json` | **blocked** | Derive from ABI C13 brightness-temperature minima ourselves, or find an S3-hosted best-track mirror. Open question. |
 | Orbital elements (TLE) | celestrak.org | **blocked** | Not needed for a *synthetic* camera — we define the orbit. If real TLEs are ever wanted, vendor a snapshot and propagate offline with `sgp4` (PyPI, reachable). |
@@ -204,6 +255,11 @@ persistent view. LEO gives you *resolution and genuine motion*; GEO gives you
 tables, a TLE snapshot) belongs in `assets/` committed to the repo. It makes the
 pipeline reproducible offline and identical across environments, which is worth far
 more than the few MB.
+
+**Local reachability does not retire vendoring — it enables it.** These hosts being
+open locally is precisely how the assets get *into* `assets/`: fetch once here, commit
+the result, and the render path stays offline and identical in the container. Fetching
+them at runtime would reintroduce the dependency that vendoring exists to remove.
 
 ---
 
@@ -232,9 +288,11 @@ Both partition schemes sort lexicographically in chronological order, which is w
 
 **Byte-range reads are the key optimization.** netCDF4 *is* HDF5, chunked and
 internally compressed. With `h5py` over `fsspec`, a single variable — or a single
-spatial chunk region — can be read without downloading the file. For C02 at 376 MB
-this is the difference between a feasible pipeline and an infeasible one. Prototype
-this early; it is the load-bearing assumption of any plan that touches 0.5 km data.
+spatial chunk region — can be read without downloading the file. For C02 at
+**318–415 MB** this is the difference between a feasible pipeline and an infeasible
+one. Prototype this early; it is the load-bearing assumption of any plan that touches
+0.5 km data. **Still unproven — this is gate G1**, and it is an *assumption*, not a
+measurement, until that record exists.
 
 **Colocate with the data.** All NOAA Open Data buckets live in `us-east-1`. Compute
 in that region gets near-line-rate transfer and zero egress cost. This matters more
@@ -253,9 +311,9 @@ than any amount of parallelism — see `docs/ROADMAP.md` on compute.
 | True colour without fabricating a channel | Himawari-9 B01/B02/B03 |
 | 0.5 km detail for a low-altitude camera | GOES C02 pan-sharpening C01/C03, via byte-range reads |
 | Genuine observed motion (no interpolation) | VIIRS swaths, or a synthetic camera (see featuredocs) |
-| Honest live night side | VIIRS DNB |
-| Never-dark full disk | DSCOVR/EPIC — when reachable |
-| Africa / Europe / India | Nothing today. Unlock EUMETSAT. |
+| Honest live night side | VIIRS DNB — ~27 min latency [measured], no obstacle |
+| Never-dark full disk | DSCOVR/EPIC — reachable locally; ~13–22 images/day and 12–36 h latency keep it archival |
+| Africa / Europe / India | Nothing on the required path. Unlock EUMETSAT (needs an account; host is reachable locally). |
 
 ---
 
@@ -263,3 +321,16 @@ than any amount of parallelism — see `docs/ROADMAP.md` on compute.
 
 - **2026-08-04** — Created. Reachability and all sizes/latencies measured in the
   cloud container; see `logs/2026-08-04T153908Z-environment-probe.md`.
+- **2026-08-04 (rev. 2)** — First local probe
+  (`logs/2026-08-04T163938Z-environment-probe.md`): all 23 hosts open, so every
+  "blocked" verdict here is container-specific. Two corrections, both from probe
+  defects rather than the data:
+  - **VIIRS DNB was never "anomalously stale."** Measured at 26.8 min median
+    publication latency, marginally faster than M5
+    (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`). The 200-minute figure
+    came from an unpaginated S3 listing. Added the latency-vs-revisit distinction.
+  - **C02 is 318–415 MB, not 376–406.** Scene-dependent; thresholds must be
+    fractions of the actual file.
+  Also: Himawari latency across three probes (4.6 / 3.6 / 5.1 min), Meteosat and
+  GeoColor reachability clarified, byte-range reads relabelled as an unproven
+  assumption pending G1.
