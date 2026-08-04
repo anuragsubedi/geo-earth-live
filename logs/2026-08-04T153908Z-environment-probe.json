@@ -1,0 +1,284 @@
+{
+  "machine": {
+    "hostname": "vm",
+    "platform": "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "python": "3.11.15",
+    "cpu_count": 4,
+    "memory_gb": 15.7,
+    "disk_total_gb": 252.0,
+    "disk_free_gb": 30.0,
+    "ffmpeg": "NOT INSTALLED",
+    "git": "git version 2.43.0",
+    "https_proxy": "http://127.0.0.1:46609",
+    "in_container_proxy": true
+  },
+  "hosts": {
+    "GEO imagery (primary pixel sources)": [
+      {
+        "host": "noaa-goes19.s3.amazonaws.com",
+        "note": "GOES-19 / GOES-East @ 75.2W -- ABI L1b+L2",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 1.56
+      },
+      {
+        "host": "noaa-goes18.s3.amazonaws.com",
+        "note": "GOES-18 / GOES-West @ 137W -- ABI L1b+L2",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 1.22
+      },
+      {
+        "host": "noaa-goes16.s3.amazonaws.com",
+        "note": "GOES-16 archive (retired from East 2025-04)",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 1.23
+      },
+      {
+        "host": "noaa-himawari9.s3.amazonaws.com",
+        "note": "Himawari-9 @ 140.7E -- AHI L1b FLDK",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 1.39
+      },
+      {
+        "host": "noaa-himawari8.s3.amazonaws.com",
+        "note": "Himawari-8 archive",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 1.23
+      }
+    ],
+    "LEO imagery (polar orbiters)": [
+      {
+        "host": "noaa-nesdis-n21-pds.s3.amazonaws.com",
+        "note": "NOAA-21 VIIRS SDR incl. DNB (live city lights)",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.83
+      },
+      {
+        "host": "noaa-nesdis-n20-pds.s3.amazonaws.com",
+        "note": "NOAA-20 VIIRS SDR",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.94
+      },
+      {
+        "host": "noaa-nesdis-snpp-pds.s3.amazonaws.com",
+        "note": "Suomi-NPP VIIRS SDR",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.81
+      },
+      {
+        "host": "noaa-jpss.s3.amazonaws.com",
+        "note": "JPSS blended / flood products",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.92
+      },
+      {
+        "host": "sentinel-s2-l1c.s3.amazonaws.com",
+        "note": "Sentinel-2 L1C (requester-pays)",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 1.45
+      }
+    ],
+    "Pre-rendered composites (cheap pixels, if reachable)": [
+      {
+        "host": "cdn.star.nesdis.noaa.gov",
+        "note": "NOAA STAR CDN -- GeoColor JPEG, the v1-draft render tier",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.14
+      },
+      {
+        "host": "www.star.nesdis.noaa.gov",
+        "note": "NOAA STAR web",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.13
+      },
+      {
+        "host": "rammb-slider.cira.colostate.edu",
+        "note": "CIRA SLIDER tiles",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.16
+      }
+    ],
+    "Ancillary / metadata": [
+      {
+        "host": "www.nhc.noaa.gov",
+        "note": "National Hurricane Center CurrentStorms.json",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.57
+      },
+      {
+        "host": "celestrak.org",
+        "note": "TLE orbital elements",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.16
+      },
+      {
+        "host": "gibs.earthdata.nasa.gov",
+        "note": "NASA GIBS -- Blue Marble, global base layers",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.65
+      },
+      {
+        "host": "epic.gsfc.nasa.gov",
+        "note": "DSCOVR/EPIC at Sun-Earth L1 -- always-lit full disk",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.43
+      },
+      {
+        "host": "naturalearthdata.com",
+        "note": "Natural Earth coastline vectors",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.47
+      },
+      {
+        "host": "data.eumetsat.int",
+        "note": "EUMETSAT -- Meteosat/MTG (fills the 20W-100E gap)",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.56
+      }
+    ],
+    "Toolchain / distribution": [
+      {
+        "host": "pypi.org",
+        "note": "Python packages",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.15
+      },
+      {
+        "host": "files.pythonhosted.org",
+        "note": "Python wheels",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.17
+      },
+      {
+        "host": "api.github.com",
+        "note": "GitHub API",
+        "status": 200,
+        "reachable": true,
+        "detail": "ok",
+        "seconds": 0.39
+      },
+      {
+        "host": "www.youtube.com",
+        "note": "reference videos / eventual RTMP target",
+        "status": null,
+        "reachable": false,
+        "detail": "Tunnel connection failed: 403 Forbidden",
+        "seconds": 0.16
+      }
+    ]
+  },
+  "freshness": [
+    {
+      "bucket": "noaa-goes19",
+      "prefix": "ABI-L2-CMIPF/",
+      "note": "GOES-19 full-disk multiband CMI",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "ABI-L2-CMIPF/2026/216/15/",
+        "latest_key": "OR_ABI-L2-CMIPF-M6C02_G19_s20262161520205_e20262161529513_c20262161529552.nc",
+        "size_mb": 405.9,
+        "modified": "2026-08-04T15:30:50.000Z",
+        "age_minutes": 8.2,
+        "keys_in_partition": 48
+      }
+    },
+    {
+      "bucket": "noaa-goes18",
+      "prefix": "ABI-L2-CMIPF/",
+      "note": "GOES-18 full-disk multiband CMI",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "ABI-L2-CMIPF/2026/216/15/",
+        "latest_key": "OR_ABI-L2-CMIPF-M6C02_G18_s20262161520206_e20262161529515_c20262161529573.nc",
+        "size_mb": 287.28,
+        "modified": "2026-08-04T15:30:48.000Z",
+        "age_minutes": 8.3,
+        "keys_in_partition": 48
+      }
+    },
+    {
+      "bucket": "noaa-himawari9",
+      "prefix": "AHI-L1b-FLDK/",
+      "note": "Himawari-9 full-disk L1b",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "AHI-L1b-FLDK/2026/08/04/1520/",
+        "latest_key": "HS_H09_20260804_1520_B16_FLDK_R20_S1010.DAT.bz2",
+        "size_mb": 0.92,
+        "modified": "2026-08-04T15:34:27.000Z",
+        "age_minutes": 4.6,
+        "keys_in_partition": 160
+      }
+    },
+    {
+      "bucket": "noaa-nesdis-n21-pds",
+      "prefix": "VIIRS-M5-SDR/",
+      "note": "NOAA-21 VIIRS M5 (0.67um)",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "VIIRS-M5-SDR/2026/08/04/",
+        "latest_key": "SVM05_j02_d20260804_t1444429_e1446058_b19342_c20260804150152869000_oeac_ops.h5",
+        "size_mb": 9.76,
+        "modified": "2026-08-04T15:03:01.000Z",
+        "age_minutes": 36.1,
+        "keys_in_partition": 622
+      }
+    },
+    {
+      "bucket": "noaa-nesdis-n21-pds",
+      "prefix": "VIIRS-DNB-SDR/",
+      "note": "NOAA-21 VIIRS day-night band",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "VIIRS-DNB-SDR/2026/08/04/",
+        "latest_key": "SVDNB_j02_d20260804_t1151103_e1152331_b19340_c20260804121727884000_oeac_ops.h5",
+        "size_mb": 9.15,
+        "modified": "2026-08-04T12:19:16.000Z",
+        "age_minutes": 199.9,
+        "keys_in_partition": 1000
+      }
+    }
+  ]
+}

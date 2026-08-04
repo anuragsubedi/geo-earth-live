@@ -1,0 +1,35 @@
+# Working data — never commit satellite granules or intermediates
+data/
+out/
+cache/
+*.nc
+*.h5
+*.DAT
+*.DAT.bz2
+
+# Rendered media
+*.mp4
+*.mov
+*.webm
+frames/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs: probe reports and run records ARE committed (they are project memory).
+# Raw noisy output is not.
+logs/raw/
+logs/*.tmp
