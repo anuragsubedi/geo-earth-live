@@ -1,0 +1,336 @@
+{
+  "machine": {
+    "hostname": "Anurags-MacBook-Air.local",
+    "platform": "macOS-26.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "python": "3.14.2",
+    "cpu_count": 8,
+    "memory_gb": 16.0,
+    "disk_total_gb": 228.3,
+    "disk_free_gb": 13.3,
+    "ffmpeg": "ffmpeg version 8.1 Copyright (c) 2000-2026 the FFmpeg developers",
+    "git": "git version 2.52.0",
+    "https_proxy": "(unset)",
+    "in_container_proxy": false,
+    "tls_trust_store": "certifi (after interpreter default failed to verify)"
+  },
+  "hosts": {
+    "GEO imagery (primary pixel sources)": [
+      {
+        "host": "noaa-goes19.s3.amazonaws.com",
+        "note": "GOES-19 / GOES-East @ 75.2W -- ABI L1b+L2",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.9
+      },
+      {
+        "host": "noaa-goes18.s3.amazonaws.com",
+        "note": "GOES-18 / GOES-West @ 137W -- ABI L1b+L2",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.95
+      },
+      {
+        "host": "noaa-goes16.s3.amazonaws.com",
+        "note": "GOES-16 archive (retired from East 2025-04)",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.73
+      },
+      {
+        "host": "noaa-himawari9.s3.amazonaws.com",
+        "note": "Himawari-9 @ 140.7E -- AHI L1b FLDK",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.73
+      },
+      {
+        "host": "noaa-himawari8.s3.amazonaws.com",
+        "note": "Himawari-8 archive",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.73
+      }
+    ],
+    "LEO imagery (polar orbiters)": [
+      {
+        "host": "noaa-nesdis-n21-pds.s3.amazonaws.com",
+        "note": "NOAA-21 VIIRS SDR incl. DNB (live city lights)",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.81
+      },
+      {
+        "host": "noaa-nesdis-n20-pds.s3.amazonaws.com",
+        "note": "NOAA-20 VIIRS SDR",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.64
+      },
+      {
+        "host": "noaa-nesdis-snpp-pds.s3.amazonaws.com",
+        "note": "Suomi-NPP VIIRS SDR",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.73
+      },
+      {
+        "host": "noaa-jpss.s3.amazonaws.com",
+        "note": "JPSS blended / flood products",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.64
+      },
+      {
+        "host": "sentinel-s2-l1c.s3.amazonaws.com",
+        "note": "Sentinel-2 L1C (requester-pays)",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.74
+      }
+    ],
+    "Pre-rendered composites (cheap pixels, if reachable)": [
+      {
+        "host": "cdn.star.nesdis.noaa.gov",
+        "note": "NOAA STAR CDN -- GeoColor JPEG, the v1-draft render tier",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.1
+      },
+      {
+        "host": "www.star.nesdis.noaa.gov",
+        "note": "NOAA STAR web",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.41
+      },
+      {
+        "host": "rammb-slider.cira.colostate.edu",
+        "note": "CIRA SLIDER tiles",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.46
+      }
+    ],
+    "Ancillary / metadata": [
+      {
+        "host": "www.nhc.noaa.gov",
+        "note": "National Hurricane Center CurrentStorms.json",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.12
+      },
+      {
+        "host": "celestrak.org",
+        "note": "TLE orbital elements",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.92
+      },
+      {
+        "host": "gibs.earthdata.nasa.gov",
+        "note": "NASA GIBS -- Blue Marble, global base layers",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.29
+      },
+      {
+        "host": "epic.gsfc.nasa.gov",
+        "note": "DSCOVR/EPIC at Sun-Earth L1 -- always-lit full disk",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.45
+      },
+      {
+        "host": "naturalearthdata.com",
+        "note": "Natural Earth coastline vectors",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.95
+      },
+      {
+        "host": "data.eumetsat.int",
+        "note": "EUMETSAT -- Meteosat/MTG (fills the 20W-100E gap)",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.38
+      }
+    ],
+    "Toolchain / distribution": [
+      {
+        "host": "pypi.org",
+        "note": "Python packages",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.08
+      },
+      {
+        "host": "files.pythonhosted.org",
+        "note": "Python wheels",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.11
+      },
+      {
+        "host": "api.github.com",
+        "note": "GitHub API",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.12
+      },
+      {
+        "host": "www.youtube.com",
+        "note": "reference videos / eventual RTMP target",
+        "status": 200,
+        "reachable": true,
+        "verdict": "**OPEN**",
+        "kind": "open",
+        "detail": "ok",
+        "seconds": 0.18
+      }
+    ]
+  },
+  "freshness": [
+    {
+      "bucket": "noaa-goes19",
+      "prefix": "ABI-L2-CMIPF/",
+      "note": "GOES-19 full-disk multiband CMI",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "ABI-L2-CMIPF/2026/216/16/",
+        "latest_key": "OR_ABI-L2-CMIPF-M6C02_G19_s20262161640205_e20262161649513_c20262161649561.nc",
+        "size_mb": 415.18,
+        "modified": "2026-08-04T16:50:57.000Z",
+        "age_minutes": 5.2,
+        "keys_in_partition": 80,
+        "listing_complete": true
+      }
+    },
+    {
+      "bucket": "noaa-goes18",
+      "prefix": "ABI-L2-CMIPF/",
+      "note": "GOES-18 full-disk multiband CMI",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "ABI-L2-CMIPF/2026/216/16/",
+        "latest_key": "OR_ABI-L2-CMIPF-M6C02_G18_s20262161640206_e20262161649515_c20262161649570.nc",
+        "size_mb": 333.93,
+        "modified": "2026-08-04T16:50:53.000Z",
+        "age_minutes": 5.2,
+        "keys_in_partition": 80,
+        "listing_complete": true
+      }
+    },
+    {
+      "bucket": "noaa-himawari9",
+      "prefix": "AHI-L1b-FLDK/",
+      "note": "Himawari-9 full-disk L1b",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "AHI-L1b-FLDK/2026/08/04/1640/",
+        "latest_key": "HS_H09_20260804_1640_B14_FLDK_R20_S1010.DAT.bz2",
+        "size_mb": 1.11,
+        "modified": "2026-08-04T16:54:42.000Z",
+        "age_minutes": 1.4,
+        "keys_in_partition": 160,
+        "listing_complete": true
+      }
+    },
+    {
+      "bucket": "noaa-nesdis-n21-pds",
+      "prefix": "VIIRS-M5-SDR/",
+      "note": "NOAA-21 VIIRS M5 (0.67um)",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "VIIRS-M5-SDR/2026/08/04/",
+        "latest_key": "SVM05_j02_d20260804_t1627071_e1628317_b19343_c20260804164652462000_oebc_ops.h5",
+        "size_mb": 9.55,
+        "modified": "2026-08-04T16:47:40.000Z",
+        "age_minutes": 8.5,
+        "keys_in_partition": 695,
+        "listing_complete": true
+      }
+    },
+    {
+      "bucket": "noaa-nesdis-n21-pds",
+      "prefix": "VIIRS-DNB-SDR/",
+      "note": "NOAA-21 VIIRS day-night band",
+      "result": {
+        "ok": true,
+        "deepest_prefix": "VIIRS-DNB-SDR/2026/08/04/",
+        "latest_key": "SVDNB_j02_d20260804_t1627071_e1628317_b19343_c20260804164620637000_oebc_ops.h5",
+        "size_mb": 8.76,
+        "modified": "2026-08-04T16:47:36.000Z",
+        "age_minutes": 8.6,
+        "keys_in_partition": 695,
+        "listing_complete": true
+      }
+    }
+  ]
+}
