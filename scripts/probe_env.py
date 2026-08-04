@@ -24,6 +24,7 @@ import platform
 import re
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import urllib.error
@@ -88,30 +89,164 @@ def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+# --- TLS trust ------------------------------------------------------------
+#
+# A failed TLS handshake is NOT evidence of an egress block, but the probe used
+# to report it as one. On a python.org framework build for macOS the configured
+# CA bundle path often does not exist, so *every* host fails to verify and the
+# whole report reads BLOCKED -- including PyPI and S3, which is never true.
+#
+# So: resolve a working trust store once, up front, against control hosts that
+# are open in every environment we care about. Prefer the interpreter default
+# (in the filtered container the proxy presents its own CA, and the default
+# store is the one that trusts it -- switching stores there would break a
+# working setup). Fall back only when the default cannot verify.
+#
+# We never disable verification. Turning verification off would convert a real
+# MITM-proxy denial into a false OPEN, which is a worse lie than the one we are
+# fixing.
+
+TRUST_CONTROL_HOSTS = ("pypi.org", "noaa-goes19.s3.amazonaws.com")
+
+# Resolved by resolve_trust_store(); every request in this run uses it.
+SSL_CONTEXT: ssl.SSLContext | None = None
+TRUST_STORE_LABEL = "unresolved"
+
+
+def _cert_candidates() -> list[tuple[str, str | None]]:
+    """(label, cafile) pairs to try, best-supported first. None = interpreter default."""
+    candidates: list[tuple[str, str | None]] = [("interpreter default", None)]
+
+    env_file = os.environ.get("SSL_CERT_FILE")
+    if env_file:
+        candidates.append(("$SSL_CERT_FILE", env_file))
+
+    try:
+        import certifi  # noqa: PLC0415 - optional; absent on a bare interpreter
+
+        candidates.append(("certifi", certifi.where()))
+    except Exception:  # noqa: BLE001
+        pass
+
+    candidates += [
+        ("/etc/ssl/cert.pem", "/etc/ssl/cert.pem"),
+        ("/opt/homebrew/etc/ca-certificates/cert.pem",
+         "/opt/homebrew/etc/ca-certificates/cert.pem"),
+        ("/etc/ssl/certs/ca-certificates.crt", "/etc/ssl/certs/ca-certificates.crt"),
+    ]
+    return [(label, f) for label, f in candidates if f is None or Path(f).is_file()]
+
+
+def _handshake_ok(ctx: ssl.SSLContext) -> tuple[bool, str]:
+    """True if any control host completes a verified TLS handshake."""
+    last = "no control host answered"
+    for host in TRUST_CONTROL_HOSTS:
+        try:
+            req = urllib.request.Request(
+                f"https://{host}/", method="HEAD",
+                headers={"User-Agent": "geo-earth-live/probe"},
+            )
+            urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx).close()
+            return True, host
+        except urllib.error.HTTPError:
+            return True, host  # origin answered: handshake succeeded
+        except urllib.error.URLError as exc:
+            reason = str(exc.reason)
+            last = reason[:120]
+            if "CERTIFICATE_VERIFY_FAILED" not in reason:
+                # Reachability problem, not a trust problem. This store is fine.
+                return True, f"{host} (assumed; {reason[:60]})"
+        except Exception as exc:  # noqa: BLE001
+            last = f"{type(exc).__name__}: {exc}"[:120]
+    return False, last
+
+
+def resolve_trust_store() -> tuple[ssl.SSLContext, str]:
+    """Pick the first CA bundle that can actually verify a control host."""
+    failures: list[str] = []
+    for label, cafile in _cert_candidates():
+        try:
+            ctx = ssl.create_default_context(cafile=cafile)
+        except Exception as exc:  # noqa: BLE001 - unreadable/corrupt bundle; try the next
+            failures.append(f"{label} ({type(exc).__name__})")
+            continue
+        ok, detail = _handshake_ok(ctx)
+        if ok:
+            suffix = "" if not failures else f" (after {', '.join(failures)} failed to verify)"
+            return ctx, f"{label}{suffix}"
+        failures.append(label)
+    # Nothing verified. Keep the default and let per-host classification say so,
+    # rather than silently weakening verification.
+    return ssl.create_default_context(), (
+        f"NONE VERIFIED -- tried {', '.join(failures) or 'no candidates'}"
+    )
+
+
+def _open(url: str, timeout: int = TIMEOUT, method: str = "GET"):
+    req = urllib.request.Request(
+        url, method=method, headers={"User-Agent": "geo-earth-live/probe"}
+    )
+    return urllib.request.urlopen(req, timeout=timeout, context=SSL_CONTEXT)
+
+
+def classify_failure(reason: str) -> tuple[str, str]:
+    """Map a connection failure to (verdict, kind).
+
+    The distinction that matters: a policy denial is a decision to design
+    around; a local trust or DNS failure is a broken toolchain that says
+    nothing about what this environment is allowed to reach.
+    """
+    low = reason.lower()
+    if "tunnel connection failed" in low or "403" in low or "proxy" in low:
+        return "**BLOCKED**", "policy"
+    if "certificate_verify_failed" in low or "unable to get local issuer" in low:
+        return "TLS TRUST?", "tls-trust"
+    if "certificate" in low or "ssl" in low:
+        return "TLS ERROR", "tls"
+    if "name or service not known" in low or "nodename nor servname" in low \
+            or "getaddrinfo" in low or "name resolution" in low:
+        return "DNS FAIL", "dns"
+    if "timed out" in low or "timeout" in low:
+        return "TIMEOUT", "timeout"
+    if "refused" in low:
+        return "REFUSED", "refused"
+    return "UNREACHABLE", "other"
+
+
 def check_host(host: str, note: str) -> dict:
-    """Probe one host. Distinguishes proxy denial from DNS/connection failure."""
+    """Probe one host, classifying *why* it failed rather than assuming a block."""
     url = f"https://{host}/"
     started = _now()
+    verdict = kind = None
     try:
-        req = urllib.request.Request(url, method="GET", headers={"User-Agent": "geo-earth-live/probe"})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        with _open(url) as resp:
             status, detail = resp.status, "ok"
     except urllib.error.HTTPError as exc:
         # An HTTP error still proves we reached the origin. 404 on a bucket root
-        # means "wrong bucket name", not "blocked".
+        # means "wrong bucket name", not "blocked". But a proxy denial also
+        # arrives as 403, so let classification see it.
         status, detail = exc.code, "reached origin"
+        if exc.code == 403 and "amazonaws.com" not in host:
+            verdict, kind = classify_failure(f"403 {exc.reason}")
     except urllib.error.URLError as exc:
         status, detail = None, str(exc.reason)[:120]
+        verdict, kind = classify_failure(str(exc.reason))
     except Exception as exc:  # noqa: BLE001 - report anything, never crash the probe
         status, detail = None, f"{type(exc).__name__}: {exc}"[:120]
+        verdict, kind = classify_failure(detail)
+
+    if verdict is None:
+        verdict = "**OPEN**" if status is not None and status < 400 else f"reached ({status})"
+        kind = "open" if status is not None and status < 400 else "reached"
 
     elapsed = (_now() - started).total_seconds()
-    reachable = status is not None
     return {
         "host": host,
         "note": note,
         "status": status,
-        "reachable": reachable,
+        "reachable": status is not None,
+        "verdict": verdict,
+        "kind": kind,
         "detail": detail,
         "seconds": round(elapsed, 2),
     }
@@ -122,7 +257,7 @@ def s3_list(bucket: str, prefix: str, delimiter: str = "/", max_keys: int = 1000
         f"https://{bucket}.s3.amazonaws.com/?list-type=2"
         f"&prefix={prefix}&delimiter={delimiter}&max-keys={max_keys}"
     )
-    with urllib.request.urlopen(url, timeout=60) as resp:
+    with _open(url, timeout=60) as resp:
         return resp.read().decode()
 
 
@@ -201,6 +336,7 @@ def local_facts() -> dict:
         "git": cmd(["git", "--version"]) or "NOT INSTALLED",
         "https_proxy": os.environ.get("HTTPS_PROXY", "(unset)"),
         "in_container_proxy": bool(os.environ.get("HTTPS_PROXY")),
+        "tls_trust_store": TRUST_STORE_LABEL,
     }
 
 
@@ -221,15 +357,25 @@ def render_report(facts: dict, host_results: dict, freshness: list[dict]) -> str
         lines.append(f"| `{key}` | {value} |")
 
     lines += ["", "## Host reachability", ""]
+
+    tls_broken = [
+        r for results in host_results.values() for r in results if r.get("kind") == "tls-trust"
+    ]
+    if tls_broken:
+        lines += [
+            "> **This report is not trustworthy.** "
+            f"{len(tls_broken)} host(s) failed TLS certificate verification, which is a",
+            "> broken local trust store -- *not* an egress policy denial. Fix the CA bundle",
+            "> and re-run before recording any verdict from this file. Do not commit these",
+            "> results as reachability facts.",
+            "",
+        ]
+
     for group, results in host_results.items():
         lines += [f"### {group}", "", "| Host | Status | Verdict | Purpose |", "|---|---|---|---|"]
         for r in results:
-            if r["reachable"]:
-                verdict = "**OPEN**" if r["status"] < 400 else f"reached ({r['status']})"
-            else:
-                verdict = "**BLOCKED**"
             status = r["status"] if r["status"] is not None else "--"
-            lines.append(f"| `{r['host']}` | {status} | {verdict} | {r['note']} |")
+            lines.append(f"| `{r['host']}` | {status} | {r['verdict']} | {r['note']} |")
         lines.append("")
 
     lines += [
@@ -254,11 +400,22 @@ def render_report(facts: dict, host_results: dict, freshness: list[dict]) -> str
         "",
         "## How to read this",
         "",
-        "- **BLOCKED** in a cloud container means an org egress-policy denial. Do not",
-        "  route around it -- record it and design for the sources that are open.",
-        "- A `404` is *not* blocked: the host answered, the bucket name was wrong.",
+        "- **OPEN** -- the origin answered with a non-error status.",
+        "- **BLOCKED** -- a proxy refused the tunnel. In a cloud container this is an",
+        "  org egress-policy denial. Do not route around it: record it and design for",
+        "  the sources that are open.",
+        "- `reached (NNN)` -- the origin answered with an error. A `404` is *not*",
+        "  blocked; the host answered and the bucket name was wrong.",
+        "- **TLS TRUST?** -- the handshake failed to verify. This says nothing about",
+        "  whether the host is reachable; it means this machine's CA bundle is broken or",
+        "  incomplete. Fix the trust store and re-run. Never record it as BLOCKED, and",
+        "  never 'fix' it by disabling verification -- that would turn a real",
+        "  MITM-proxy denial into a false OPEN.",
+        "- **DNS FAIL / TIMEOUT / REFUSED** -- network-layer failures, also not policy.",
         "- If a host is BLOCKED here but OPEN on your laptop, that is expected. Any",
         "  design that depends on it must be optional, with a reachable fallback.",
+        "",
+        f"TLS trust store used for this run: `{facts.get('tls_trust_store', 'unknown')}`.",
         "",
     ]
     return "\n".join(lines)
@@ -270,7 +427,12 @@ def main() -> int:
     parser.add_argument("--quiet", action="store_true", help="suppress stdout report")
     args = parser.parse_args()
 
+    global SSL_CONTEXT, TRUST_STORE_LABEL
+
     print("Probing environment...", file=sys.stderr)
+    SSL_CONTEXT, TRUST_STORE_LABEL = resolve_trust_store()
+    print(f"  TLS trust store: {TRUST_STORE_LABEL}", file=sys.stderr)
+
     facts = local_facts()
 
     host_results: dict[str, list[dict]] = {}
