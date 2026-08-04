@@ -28,6 +28,7 @@ import ssl
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -252,13 +253,47 @@ def check_host(host: str, note: str) -> dict:
     }
 
 
-def s3_list(bucket: str, prefix: str, delimiter: str = "/", max_keys: int = 1000) -> str:
+def s3_list(bucket: str, prefix: str, delimiter: str = "/", max_keys: int = 1000,
+            token: str | None = None) -> str:
     url = (
         f"https://{bucket}.s3.amazonaws.com/?list-type=2"
         f"&prefix={prefix}&delimiter={delimiter}&max-keys={max_keys}"
     )
+    if token:
+        url += f"&continuation-token={urllib.parse.quote(token, safe='')}"
     with _open(url, timeout=60) as resp:
         return resp.read().decode()
+
+
+# A ListObjectsV2 page caps at 1000 keys. VIIRS partitions a whole UTC day into one
+# flat prefix holding thousands of objects, and S3 returns them in *lexicographic*
+# order -- which for VIIRS filenames is observation order. Reading only the first
+# page therefore yields the newest of the OLDEST 1000 keys.
+#
+# That is not hypothetical: it is why two probes reported the DNB day-night band as
+# 200 and 249 minutes stale and docs/DATA_SOURCES.md called it "anomalously stale".
+# Measured properly, DNB publishes continuously at ~27 min. Always paginate.
+MAX_LIST_PAGES = 40
+
+
+def s3_list_all(bucket: str, prefix: str) -> tuple[list[tuple[str, str, str]], bool]:
+    """Every (key, last_modified, size) under a prefix. Returns (rows, complete)."""
+    rows: list[tuple[str, str, str]] = []
+    token, complete = None, True
+    for page in range(MAX_LIST_PAGES):
+        body = s3_list(bucket, prefix, delimiter="", token=token)
+        rows += re.findall(
+            r"<Key>(.*?)</Key>.*?<LastModified>(.*?)</LastModified>.*?<Size>(\d+)</Size>",
+            body,
+            re.S,
+        )
+        m = re.search(r"<NextContinuationToken>(.*?)</NextContinuationToken>", body)
+        if "<IsTruncated>true</IsTruncated>" not in body or not m:
+            break
+        token = m.group(1)
+    else:
+        complete = False  # hit the page cap; the newest key may be beyond it
+    return rows, complete
 
 
 def latest_granule(bucket: str, prefix: str) -> dict:
@@ -276,14 +311,14 @@ def latest_granule(bucket: str, prefix: str) -> dict:
                 break
             path = sorted(subs)[-1]
 
-        body = s3_list(bucket, path, delimiter="")
-        rows = re.findall(
-            r"<Key>(.*?)</Key>.*?<LastModified>(.*?)</LastModified>.*?<Size>(\d+)</Size>",
-            body,
-            re.S,
-        )
+        rows, complete = s3_list_all(bucket, path)
         if not rows:
             return {"ok": False, "error": f"no keys under {path}"}
+
+        # Checksum sidecars are published after the data they describe; ranking on
+        # them would overstate freshness.
+        data_rows = [r for r in rows if not r[0].endswith((".sha384", ".sha256", ".md5"))]
+        rows = data_rows or rows
 
         key, modified, size = sorted(rows, key=lambda r: r[1])[-1]
         mod_dt = dt.datetime.fromisoformat(modified.replace("Z", "+00:00"))
@@ -295,6 +330,7 @@ def latest_granule(bucket: str, prefix: str) -> dict:
             "modified": modified,
             "age_minutes": round((_now() - mod_dt).total_seconds() / 60, 1),
             "keys_in_partition": len(rows),
+            "listing_complete": complete,
         }
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:160]}
@@ -381,7 +417,12 @@ def render_report(facts: dict, host_results: dict, freshness: list[dict]) -> str
     lines += [
         "## Data freshness",
         "",
-        "Latency here is *publication* latency: wall-clock age of the newest object.",
+        "**Age is the wall-clock age of the newest object -- it is NOT publication",
+        "latency.** For a geostationary sensor scanning on a fixed schedule the two are",
+        "close. For a polar orbiter they are not: age there is publication latency *plus*",
+        "the revisit gap since the sensor last observed. To measure VIIRS latency alone,",
+        "use `scripts/viirs_latency.py`, which reads the observation and creation",
+        "timestamps out of the granule filenames.",
         "",
         "| Source | Latest object | Size | Age | Deepest prefix |",
         "|---|---|---|---|---|",
@@ -389,9 +430,10 @@ def render_report(facts: dict, host_results: dict, freshness: list[dict]) -> str
     for f in freshness:
         if f["result"].get("ok"):
             r = f["result"]
+            flag = "" if r.get("listing_complete", True) else " ⚠️ listing truncated"
             lines.append(
                 f"| {f['note']} | `{r['latest_key'][:56]}` | {r['size_mb']} MB | "
-                f"{r['age_minutes']} min | `{r['deepest_prefix']}` |"
+                f"{r['age_minutes']} min{flag} | `{r['deepest_prefix']}` |"
             )
         else:
             lines.append(f"| {f['note']} | -- | -- | -- | ERROR: {f['result'].get('error')} |")
