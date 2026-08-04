@@ -203,8 +203,16 @@ output. This is the price of admission for synthesizing imagery.
 
 ## Open questions
 
-- Does `h5py` + `fsspec` byte-range reading of C02 actually deliver a camera-sector
-  crop cheaply enough? **This is the load-bearing assumption.** Prototype first.
+- ~~Does `h5py` + `fsspec` byte-range reading of C02 actually deliver a camera-sector
+  crop cheaply enough? **This is the load-bearing assumption.** Prototype first.~~
+  **Answered 2026-08-04 — yes** (`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`):
+  15.7% of a 435 MB granule in 15.39 s, pixels bit-identical. Native 0.5 km is
+  affordable, so the honest-altitude figures above stand without an upscale caveat.
+  **A new question replaces it:** sector cost scales with **height only** — a
+  2048-row band costs the same at 2048 px wide as at 21696 — so an east–west pan is
+  free and a north–south pan is not. Does that asymmetry favour particular orbits, or
+  argue for orbit-aligned prefetch of row bands? Cheap to exploit, expensive to
+  retrofit.
 - Colour balance across a GOES↔Himawari seam, given synthetic vs. real green.
 - What renderer? A dependency-light option (numpy ray-cast, CPU) is portable and
   probably fast enough at 1080p; a GL/moderngl path is faster but adds an

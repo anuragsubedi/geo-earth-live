@@ -56,7 +56,7 @@ is a defensible middle, and it is a *choice*, not a constraint.
 
 > Two mesoscale sectors (`CMIPM1`, `CMIPM2`), **60 frames per hour each — a 60-second
 > cadence**, all 16 bands. And they are tiny: **C13 at 0.31 MB, C02 at 4.4 MB per
-> frame**, against 22.7 MB and 318–415 MB for the full-disk equivalents.
+> frame**, against 22.7 MB and 318–435 MB for the full-disk equivalents.
 
 That is **10× the cadence at ~1/70th the bytes.** The consequence is the most useful
 result in this document:
@@ -144,5 +144,5 @@ problem than full-frame motion synthesis.
 - **2026-08-04** — Created. Mesoscale cadence and sizes measured; see
   `logs/2026-08-04T153908Z-environment-probe.md` and the session record.
 - **2026-08-04 (rev. 2)** — Full-disk C02 comparison figure updated to the measured
-  318–415 MB range (was 376–406 MB). The mesoscale advantage is unaffected — it gets
+  318–435 MB range (was 376–406 MB). The mesoscale advantage is unaffected — it gets
   slightly larger at the low end of the range.

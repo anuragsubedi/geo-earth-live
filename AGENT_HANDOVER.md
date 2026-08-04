@@ -39,10 +39,16 @@ reclaimed.
 | `implementation_plans/` | What is being built, with definitions of done.`archive/` for superseded.   |
 | `logs/`                 | Probe reports and run records.**Committed** — this is project memory. |
 | `assets/`               | Vendored static data (coastlines, base maps). Committed on purpose.          |
-| `scripts/`              | Standalone utilities.                                                        |
+| `scripts/`              | Standalone utilities:`probe_env.py`, `viirs_latency.py`, `g1_byte_range.py`. |
 | `src/geoearth/`         | The pipeline. Does not exist yet.                                            |
 
-## The seven things that will trip you up
+`probe_env.py` is **stdlib only and must stay that way** — it has to run before any
+install, in an environment you do not yet trust. `g1_byte_range.py` is the exception
+and needs `h5py fsspec s3fs numpy`; there is no `pyproject.toml` until M1, so until
+then: `python3 -m venv .venv && .venv/bin/pip install h5py fsspec s3fs numpy`
+(`.venv/` is gitignored).
+
+## The eight things that will trip you up
 
 1. **Egress is filtered in the cloud container — and only there.** `*.s3.amazonaws.com`,
    PyPI and GitHub are open. NOAA STAR CDN, NHC, EUMETSAT, NASA GIBS, DSCOVR/EPIC,
@@ -70,7 +76,17 @@ reclaimed.
    equinoxes (solar keep-out) and during calibration. Never crash on a gap.
 7. **Colocate with the data.** All NOAA buckets are in `us-east-1`. That single fact
    is worth more than any amount of parallelism. The job is I/O-bound; do not reach
-   for a cluster.
+   for a cluster. It is also why **every wall-clock number in `logs/` measured from a
+   laptop is an upper bound** — those runs are latency-bound, hundreds of serialized
+   ~85 ms round trips. Byte counts port between environments; seconds do not.
+8. **Sector cost depends on height, not area** [measured, `logs/…-experiment-g1-byte-range.md`].
+   ABI `CMI` is chunked **(6, 21696)** — full-width 6-row strips. A 2048-row band costs
+   **54.05 MB whether it is 2048 or 21696 px wide, the same figure to the byte.** So:
+   fetch **row bands, never square tiles**; a horizontal tiling scheme multiplies cost
+   and buys nothing; panning east–west is free and north–south is not. Also set
+   `cache_type` explicitly when opening over fsspec — the common default `"bytes"`
+   over-fetches enough to **fail** the 25% budget (27.1%), while `"readahead"` with a
+   4 MiB block passes at 15.7%.
 
 ## The honesty requirement
 
@@ -111,18 +127,38 @@ introduced a defect, not a feature.
 Rather than trusting this paragraph, read `PROJECT_STATE.md` — it is maintained;
 this section is a snapshot.
 
-As of **2026-08-04**: documentation scaffold complete; the only code is
-`scripts/probe_env.py` and `scripts/viirs_latency.py`; no pipeline exists. The next
-concrete task is **G1 — prove or kill byte-range reads of GOES C02 via `h5py` +
-`fsspec`**, which determines whether 0.5 km imagery is affordable and therefore what
-camera altitude is honest.
+As of **2026-08-04 (rev. 4)**: documentation scaffold complete; the only code is
+`scripts/probe_env.py`, `scripts/viirs_latency.py` and `scripts/g1_byte_range.py`.
+**No pipeline exists — `src/geoearth/` is still empty.**
 
-**Two published numbers have already turned out to be defects in our own probe**, not
-properties of the data — a missing CA bundle read as a total egress block, and an
-unpaginated S3 listing that made VIIRS DNB look 7× staler than it is. Both are fixed
-and recorded. The habit worth inheriting: **cross-check any load-bearing number by a
-second method that shares no code with the first.** Two runs of the same tool
-agreeing is not corroboration.
+**G1 has been answered, and it passed.** Byte-range reads of GOES C02 cost **15.7% of
+a 435 MB granule in 15.39 s** from outside AWS, pixel-exact
+(`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`). 0.5 km is affordable, so the
+2 km `MCMIPF` fallback and the ~6,600 km camera-altitude cap are **not** taken, and
+the honest camera can assume native 0.5 km. What that experiment mainly bought,
+though, was the chunk-geometry fact in trip-up 8 — read it before writing any fetch
+code.
+
+**The next concrete task is a decision, not a measurement.** The shared-core plan is
+still `PROPOSED` and unsigned, and its one technical unknown is now closed. Building
+`src/geoearth/` needs the repo owner's sign-off (and ideally D1, track sequencing).
+If you want measurement work instead, four experiments remain specified and unclaimed
+in `PROJECT_STATE.md`.
+
+**Three published numbers have turned out to be defects in our own tools**, not
+properties of the data — a missing CA bundle read as a total egress block, an
+unpaginated S3 listing that made VIIRS DNB look 7× staler than it is, and a G1 run
+that reported `FAIL` because the script picked the fewest-*bytes* configuration
+rather than a *passing* one. All three are fixed and recorded. The habit worth
+inheriting: **cross-check any load-bearing number by a second method that shares no
+code with the first.** Two runs of the same tool agreeing is not corroboration —
+G1's headline figure is trustworthy because an independent `urllib`+`zlib` path
+reproduced it to 0.06% with zero pixel mismatches, not because it ran twice.
+
+**Long runs must report progress and checkpoint their output.** `g1_byte_range.py` is
+the reference: live status on stderr, and its JSON report rewritten after every phase
+so an interrupted run still leaves evidence in `logs/`. A tool that goes silent for
+four minutes is indistinguishable from one that has hung.
 
 **All three tracks are in scope and explored in parallel** (`docs/ROADMAP.md`); the
 open question is sequencing, not selection. "Quasi-live" is rhetorical — a sped-up
@@ -134,5 +170,8 @@ branch ends in a `logs/` experiment record: what was compared, cost, quality
 "Defer" is a valid verdict. Four experiments remain specified and unclaimed — see
 `PROJECT_STATE.md`. The night-side four-way used to need a local machine for its
 GeoColor arm; **on a local machine every arm is now reachable [measured]**, so it is
-runnable today. One experiment is already complete: VIIRS latency
-(`logs/2026-08-04T164009Z-experiment-viirs-latency.md`).
+runnable today. Two experiments are complete: VIIRS latency
+(`logs/2026-08-04T164009Z-experiment-viirs-latency.md`) and G1 byte-range reads
+(`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`) — read the latter as the
+worked example of the format, including its "incidental findings" section, which is
+where the load-bearing chunk-geometry result actually surfaced.

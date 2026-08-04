@@ -44,7 +44,11 @@ cadence.
 - **Look:** the reference video, at an honest altitude — 4K at ~1,600 km or 1080p at
   ~800 km (`featuredocs/2026-08-04-orbital-camera.md`).
 - **Playback:** 1×–10×. Motion comes from the camera, so little or no interpolation.
-- **Risk:** depends on byte-range reads of 0.5 km data. Unproven — gate G1.
+- **Risk:** ~~depends on byte-range reads of 0.5 km data. Unproven — gate G1.~~
+  **Retired — G1 passed** (15.7% of bytes, pixel-exact,
+  `logs/2026-08-04T171354Z-experiment-g1-byte-range.md`). Native 0.5 km is
+  affordable. The residual constraint is *shape*, not cost: sector bytes scale with
+  height only, so the camera pans cheaply east–west and expensively north–south.
 - **Honesty cost:** the viewpoint is fabricated.
 
 ### Track B — Daily Summary
@@ -118,7 +122,6 @@ Experiments currently specified and awaiting a run:
 
 | Experiment | Specified in | Decides |
 |---|---|---|
-| **G1** — byte-range reads of C02 | `implementation_plans/2026-08-04-shared-core.md` (`PROPOSED`) | Whether 0.5 km is affordable; camera altitude |
 | **Hold-out interpolation** | `featuredocs/2026-08-04-interpolation-and-upscaling.md` | Which interpolation method ships, and its measured cost |
 | **Night-side four-way** | `featuredocs/2026-08-04-night-side-compositing.md` | GeoColor vs. IR vs. IR+DNB vs. dark. **Unblocked** — every arm reachable locally |
 | **Playback rate ladder** | `featuredocs/2026-08-04-time-compression.md` | Where the terminator stops reading as an event |
@@ -129,6 +132,7 @@ Completed:
 | Experiment | Record | Result |
 |---|---|---|
 | **VIIRS latency vs. revisit** | `logs/2026-08-04T164009Z-experiment-viirs-latency.md` | **Adopt.** DNB latency 26.8 min, not the 200 min previously recorded — that was a probe defect. Removes a false constraint on D7 |
+| **G1 — byte-range reads of C02** | `logs/2026-08-04T171354Z-experiment-g1-byte-range.md` | **Adopt.** 15.7% of a 435 MB granule in 15.39 s, corroborated to 0.06% by an independent path. 0.5 km affordable, so Track A's altitude cap is lifted — but sector cost scales with **height only**, so fetch row bands, not tiles |
 
 The **hold-out interpolation experiment is the most valuable single result the
 project can produce.** It converts "looks smooth" into a defensible number, and it is

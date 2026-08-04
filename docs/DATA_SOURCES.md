@@ -64,7 +64,7 @@ one 10-minute frame:
 | Band | Wavelength | Native res | Size/frame |
 |---|---|---|---|
 | C01 (blue) | 0.47 µm | 1 km | 73.6 MB |
-| **C02 (red)** | 0.64 µm | **0.5 km** | **318–415 MB** |
+| **C02 (red)** | 0.64 µm | **0.5 km** | **318–435 MB** |
 | C03 (veggie NIR) | 0.86 µm | 1 km | 83.8 MB |
 | C07 (shortwave IR) | 3.9 µm | 2 km | 25.2 MB |
 | C13 (clean longwave IR) | 10.3 µm | 2 km | 22.7 MB |
@@ -75,7 +75,7 @@ one 10-minute frame:
 Full-disk fixed grid: 5424² at 2 km, 10848² at 1 km, 21696² at 0.5 km.
 
 **C02 size varies with the scene, so treat it as a range, not a constant.** Across
-probes on 2026-08-04 the observed span was **318–415 MB** — GOES-19 413.7 and
+probes on 2026-08-04 the observed span was **318–435 MB** — GOES-19 413.7 and
 414.6 MB, GOES-18 318.1 and 323.5 MB. These files are internally compressed, so a
 cloudier or higher-contrast disk costs more bytes, and GOES-18's Pacific disk is
 consistently cheaper than GOES-19's. **Any budget or threshold expressed in absolute
@@ -92,7 +92,7 @@ ABI does not only scan full disks. **[measured]** for
 
 | Product | Coverage | Cadence | Frames/hour | C13 size | C02 size |
 |---|---|---|---|---|---|
-| `CMIPF` full disk | hemisphere | 600 s | 6 | 22.7 MB | 318–415 MB |
+| `CMIPF` full disk | hemisphere | 600 s | 6 | 22.7 MB | 318–435 MB |
 | `CMIPC` CONUS | ~5000×3000 km | **300 s** | 12 | ~11.6 MB | — |
 | **`CMIPM1` / `CMIPM2` mesoscale** | ~1000×1000 km each | **60 s** | **60 each** | **0.31 MB** | **4.4 MB** |
 
@@ -286,13 +286,20 @@ Path conventions differ and this bites people:
 Both partition schemes sort lexicographically in chronological order, which is why
 `scripts/probe_env.py` can find the newest granule by walking last-prefix repeatedly.
 
-**Byte-range reads are the key optimization.** netCDF4 *is* HDF5, chunked and
-internally compressed. With `h5py` over `fsspec`, a single variable — or a single
-spatial chunk region — can be read without downloading the file. For C02 at
-**318–415 MB** this is the difference between a feasible pipeline and an infeasible
-one. Prototype this early; it is the load-bearing assumption of any plan that touches
-0.5 km data. **Still unproven — this is gate G1**, and it is an *assumption*, not a
-measurement, until that record exists.
+**Byte-range reads are the key optimization, and they work [measured]** —
+`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`. netCDF4 *is* HDF5, chunked and
+internally compressed, so with `h5py` over `fsspec` a spatial region can be read
+without downloading the file. Measured on a 435.38 MB C02 granule: a 2048² sector in
+**15.7% of the bytes, 15.39 s** from outside AWS, pixels bit-identical to a full read.
+This was gate G1 and it **passed**; it is now a measurement, not an assumption.
+
+**But the geometry is not what you would guess.** `CMI` is chunked **(6, 21696)** —
+full-width 6-row strips — so **byte cost tracks sector height and ignores width
+entirely**. A 2048-row band costs **54.05 MB whether it is 2048 or 21696 px wide, the
+same figure to the byte**; cost is **26.4 kB/row**, linear, with ~4096 rows the
+practical ceiling. Read **row bands, not square tiles**, and set `cache_type`
+explicitly — fsspec's common `"bytes"` default over-fetches to 27.1% and would fail
+a 25% budget, where `"readahead"` at a 4 MiB block lands at 15.7%.
 
 **Colocate with the data.** All NOAA Open Data buckets live in `us-east-1`. Compute
 in that region gets near-line-rate transfer and zero egress cost. This matters more
@@ -329,8 +336,16 @@ than any amount of parallelism — see `docs/ROADMAP.md` on compute.
     publication latency, marginally faster than M5
     (`logs/2026-08-04T164009Z-experiment-viirs-latency.md`). The 200-minute figure
     came from an unpaginated S3 listing. Added the latency-vs-revisit distinction.
-  - **C02 is 318–415 MB, not 376–406.** Scene-dependent; thresholds must be
+  - **C02 is 318–435 MB, not 376–406.** Scene-dependent; thresholds must be
     fractions of the actual file.
   Also: Himawari latency across three probes (4.6 / 3.6 / 5.1 min), Meteosat and
   GeoColor reachability clarified, byte-range reads relabelled as an unproven
   assumption pending G1.
+- **2026-08-04 (rev. 3)** — **G1 ran and passed**
+  (`logs/2026-08-04T171354Z-experiment-g1-byte-range.md`). Byte-range reads move from
+  assumption to measurement: 15.7% of bytes, pixel-exact. Added the chunk-geometry
+  result — `CMI` is chunked (6, 21696), so cost scales with sector **height** and
+  ignores width; read row bands, not tiles; set `cache_type` explicitly. C02's
+  observed range widened again to **318–435 MB** on two granules measuring 435.4 MB,
+  which is the second time a fraction-based threshold has absorbed a drift an
+  absolute one would not have.
