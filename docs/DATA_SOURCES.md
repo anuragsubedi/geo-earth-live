@@ -65,6 +65,43 @@ Full-disk fixed grid: 5424² at 2 km, 10848² at 1 km, 21696² at 0.5 km.
 objects appeared in S3 at **14:10:08Z — about 17 seconds after scan end**, ~10 minutes
 after scan start. Substantially better than the 30–90 s the inherited draft assumed.
 
+### Sub-disk sectors — the cadence that changes the design
+
+ABI does not only scan full disks. **[measured]** for
+`noaa-goes19/ABI-L2-CMIPM/2026/216/14/` and `ABI-L2-CMIPC/`:
+
+| Product | Coverage | Cadence | Frames/hour | C13 size | C02 size |
+|---|---|---|---|---|---|
+| `CMIPF` full disk | hemisphere | 600 s | 6 | 22.7 MB | 376–406 MB |
+| `CMIPC` CONUS | ~5000×3000 km | **300 s** | 12 | ~11.6 MB | — |
+| **`CMIPM1` / `CMIPM2` mesoscale** | ~1000×1000 km each | **60 s** | **60 each** | **0.31 MB** | **4.4 MB** |
+
+**Two independent mesoscale sectors, 60-second cadence, all 16 bands, at roughly
+1/70th the bytes of the full-disk equivalent.**
+
+This matters more than its size suggests. At 60 s cadence a 24-hour sequence is 1,440
+real frames — **48 seconds at 30 fps with no interpolation at all**
+(`featuredocs/2026-08-04-time-compression.md`). It is the only reachable source that
+yields smooth, watchable, entirely un-synthesized motion.
+
+Caveats: coverage is a small box, not a disk; and **NOAA repositions the sectors to
+follow active weather**, so the footprint is not fixed and geolocation must be read
+per granule. A 24-hour sequence may span a reposition and will not be spatially
+continuous across it.
+
+### Pre-rendered composites — cheap pixels, environment-dependent
+
+NOAA/CIRA publish **GeoColor** as finished JPEG (true colour by day; bands 7+13 at
+night over a static VIIRS city-lights layer) at `cdn.star.nesdis.noaa.gov`, in sizes
+from 339² to 21696². At ~2–4 MB for 5424², a full day is ~430 MB — an order of
+magnitude cheaper than compositing from netCDF, and operational quality.
+
+**Blocked in the cloud container; expected to work on a local machine.** It remains a
+legitimate and fast route to a presentable product, and it is the inherited plan's
+choice. Treated as one of four open night-side options in
+`featuredocs/2026-08-04-night-side-compositing.md`. Its cost is the disclosure that
+the city lights are a static database rather than observation.
+
 **Himawari-9 is the efficiency winner [measured]:** AHI L1b full disk is delivered as
 **10 bzip2-compressed segments** per band, and the newest frame was **4.6 minutes** old.
 
@@ -117,12 +154,19 @@ compared to M-bands. Re-measure before designing around DNB latency.
 
 ### Why DNB is strategically important
 
-The inherited plan's night-side solution was CIRA GeoColor, whose city lights are a
-**static VIIRS reference layer, not live observation** — a disclosure burden the plan
-correctly flagged. VIIRS DNB is the *actual observation*. If we composite our own
-night side from live DNB, the caveat disappears entirely and the product becomes
-more honest than the off-the-shelf one. That is a rare case where doing more work
-buys integrity rather than just polish.
+CIRA GeoColor's city lights are a **static multi-year VIIRS composite, not live
+observation** — a disclosure burden the inherited plan correctly flagged. VIIRS DNB
+is an actual observation of *this* night, so it captures outages, fires and shipping
+that a static layer cannot.
+
+It **reduces** the disclosure rather than removing it. VIIRS's night pass is near
+01:25 local, so a GEO night frame can be **up to ~7 hours away in time** from the DNB
+observation lighting it, from a different sensor and viewing geometry. And DNB images
+cloud by reflected *moonlight*, so its cloud detail varies over the lunar cycle and
+largely vanishes near new moon.
+
+Better, not caveat-free. Fully worked through, alongside the other three night-side
+options, in `featuredocs/2026-08-04-night-side-compositing.md`.
 
 ### Why LEO is not a drop-in replacement for GEO
 
@@ -203,7 +247,9 @@ than any amount of parallelism — see `docs/ROADMAP.md` on compute.
 | If you want… | Use |
 |---|---|
 | Highest cadence, persistent view, lowest latency | GOES-19 / GOES-18 / Himawari-9 full disk |
-| Cheapest usable frames | Himawari-9 B13 (~11 MB/frame) |
+| **Smooth motion with zero interpolation** | **ABI mesoscale `CMIPM1`/`CMIPM2` — 60 s cadence** |
+| Fastest route to a presentable product | GeoColor JPEG from NOAA STAR CDN (local machine only) |
+| Cheapest usable frames | ABI mesoscale C13 (0.31 MB), then Himawari-9 B13 (~11 MB) |
 | True colour without fabricating a channel | Himawari-9 B01/B02/B03 |
 | 0.5 km detail for a low-altitude camera | GOES C02 pan-sharpening C01/C03, via byte-range reads |
 | Genuine observed motion (no interpolation) | VIIRS swaths, or a synthetic camera (see featuredocs) |

@@ -10,13 +10,17 @@ terminator crossings, night passes.
 
 ---
 
-## The honest version of "live"
+## What "quasi-live" means here
 
-The best latency available from reachable sources is roughly **5–15 minutes behind
-reality** — Himawari-9 publishes full-disk imagery ~4.6 minutes after scan, GOES-19
-~8 minutes. That is genuinely good, and it is not real-time. Nothing makes it
-real-time: geostationary imagers are scanning radiometers, and a full disk takes ten
-minutes to build by construction.
+**Rhetorically, not literally.** A true real-time feed would be unwatchable —
+geostationary imagery arrives one frame per 600 seconds, and weather at 1× barely
+moves. The reference video's appeal comes from *orbital velocity*, not from real-time
+observation. So a **sped-up animation is a legitimate expression of the goal, not a
+fallback from it.**
+
+Latency still matters and is genuinely good: **~4.6 minutes** from Himawari-9,
+**~8 minutes** from GOES-19 [measured]. That is what makes "today's weather" possible
+rather than "last week's." It is a secondary quality, not the definition of success.
 
 Two further constraints shape everything here:
 
@@ -28,10 +32,21 @@ Two further constraints shape everything here:
   and moving at 7.7 km/s. GEO gives cadence but no motion; polar orbits give motion
   but revisit any point only twice a day.
 
-The project's central idea is that **those two things are separable**: take motion
-from a synthetic camera and imagery from whichever real sensor has the right
-cadence. See
-[`featuredocs/2026-08-04-orbital-camera.md`](featuredocs/2026-08-04-orbital-camera.md).
+Three tracks are being explored in parallel, all in scope
+([`docs/ROADMAP.md`](docs/ROADMAP.md)):
+
+- **A — Orbital camera.** Motion and imagery are separable: take motion from a
+  synthetic camera and imagery from whichever sensor has the right cadence.
+- **B — Daily summary.** 24 hours compressed to ~60 s, terminator sweep as the clock,
+  with automated detection of the day's notable weather. Sequenced first — shortest
+  path to moving pictures.
+- **C — Polar swath.** VIIRS strips at 375 m. Zero synthesis; every pixel and every
+  motion observed.
+
+One measured finding shapes all three: **ABI mesoscale sectors publish every 60
+seconds** at ~1/70th the bytes of a full disk, so a 24-hour sequence is 48 seconds at
+30 fps **with no interpolation at all**
+([`featuredocs/2026-08-04-time-compression.md`](featuredocs/2026-08-04-time-compression.md)).
 
 ## Data
 

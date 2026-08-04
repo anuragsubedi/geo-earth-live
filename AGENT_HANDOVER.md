@@ -116,5 +116,15 @@ this section is a snapshot.
 As of **2026-08-04**: documentation scaffold complete, `scripts/probe_env.py` is the
 only code, no pipeline exists. The next concrete task is **G1 — prove or kill
 byte-range reads of GOES C02 via `h5py` + `fsspec`**, which determines whether
-0.5 km imagery is affordable and therefore what camera altitude is honest. The
-direction between three candidate tracks is still the repo owner's open decision.
+0.5 km imagery is affordable and therefore what camera altitude is honest.
+
+**All three tracks are in scope and explored in parallel** (`docs/ROADMAP.md`); the
+open question is sequencing, not selection. "Quasi-live" is rhetorical — a sped-up
+animation is a legitimate expression of the goal, not a fallback.
+
+**Exploration must produce reviewable results, not opinions.** Every exploratory
+branch ends in a `logs/` experiment record: what was compared, cost, quality
+(measured where measurable), the disclosure each option would require, and a verdict.
+"Defer" is a valid verdict. Five experiments are already specified and unclaimed —
+see `PROJECT_STATE.md`. One of them, the night-side four-way, **needs a local machine**,
+because the GeoColor arm depends on a host blocked in the container.

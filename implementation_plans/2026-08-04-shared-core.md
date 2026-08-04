@@ -17,14 +17,16 @@ things broke it, all measured (`logs/2026-08-04T153908Z-environment-probe.md`):
 | S3 publication latency 30–90 s after scan | **~17 s after scan end.** Better than assumed. |
 | satpy avoided because of macOS ARM install pain | Irrelevant on Linux x86; and with GeoColor gone we must composite ourselves, so satpy is back on the table. |
 
-There is also a **scope change**, which matters more than the plumbing. The
-inherited plan targeted a sped-up daily summary. The stated goal is a quasi-live
-feed with the *ORBIT* feel. Those are different products
-(`featuredocs/2026-08-04-orbital-camera.md`), and the direction is not yet chosen.
+**What did *not* change: the inherited plan's product.** "Quasi-live" in this project
+is rhetorical, so a sped-up daily summary is a legitimate expression of the goal
+rather than a retreat from it (`docs/ROADMAP.md`). It survives intact as **Track B**,
+and it is sequenced *first* — it is the shortest path to moving pictures, and it
+carries the project's only analysis component. What was superseded is the plan's data
+plumbing, not its idea.
 
-**So this plan deliberately does not choose.** It builds the ~70% that all three
-candidate tracks need, and gates on the one unproven assumption. The daily-summary
-track is not abandoned — it becomes one consumer of this core.
+**This plan deliberately commits to no single track.** It builds the ~70% that all
+three need, and gates on the one unproven assumption. Every track is a consumer of
+this core.
 
 ---
 
@@ -101,7 +103,7 @@ sane way into Himawari's format. Standard `venv` + `pip`; no conda.
 |---|---|---|
 | **G1** | Byte-range prototype | A `logs/` decision record with measured bytes and seconds |
 | **M1** | Scaffold + config | `geoearth --help` runs; `config.yaml` validates; tests pass |
-| **M2** | Discovery | List every GOES-19 and Himawari-9 full-disk granule for a UTC day; report expected-vs-present with gaps named |
+| **M2** | Discovery | List every GOES-19 and Himawari-9 full-disk granule for a UTC day; report expected-vs-present with gaps named. **Also handle `CMIPM1`/`CMIPM2` at 60 s** — including detecting sector repositioning, since the footprint moves |
 | **M3** | Fetch + cache | Pull one frame's bands within a disk budget; re-run hits cache; cache evicts when over budget |
 | **M4** | Geolocation | `tests/test_geo.py` round-trips a known landmark to < 1 px; viewing-zenith and solar-geometry helpers verified against hand calculations |
 | **M5** | **First frame** | A single composited full-disk PNG from live data that **looks like Earth**, with a coastline overlay landing on the coastlines |
@@ -176,6 +178,14 @@ older granules carry −75.0 in `goes_imager_projection`. Read
 ## Out of scope for this plan
 
 Video encoding and interpolation · the virtual camera · feature detection and text
-recaps · VIIRS ingest · scheduling and publishing · Meteosat.
+recaps · VIIRS ingest · scheduling and publishing · Meteosat · the night-side
+four-way comparison (needs a local machine for its GeoColor arm).
 
-Each is a follow-on plan once a track is chosen (decision D1).
+Each is a follow-on plan. Sequencing is decision D1 — current proposal B → A → C,
+with Track B first because it reaches moving pictures soonest.
+
+**One forward-looking requirement, though:** the composite stage must treat the
+night-side treatment as a **swappable stage**, not a baked-in assumption. Four options
+are open (`featuredocs/2026-08-04-night-side-compositing.md`) and the choice is
+expected to differ per track. Designing that seam now costs almost nothing;
+retrofitting it costs a rewrite.

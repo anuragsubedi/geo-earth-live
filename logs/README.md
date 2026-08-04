@@ -22,7 +22,24 @@ frames without noticing.
 | `environment-probe` | `scripts/probe_env.py` | Which hosts are reachable *here*. Regenerate in every new environment before trusting `docs/DATA_SOURCES.md`. |
 | `ingest-run` | ingest CLI (not yet built) | What was fetched, what was missing, bytes moved, elapsed. |
 | `render-run` | render CLI (not yet built) | Frame counts, gaps, encode settings, output checksums. |
+| `experiment` | exploratory branches | **The output of exploring an alternative.** See below. |
 | `decision` | written by hand | A choice made and why, when it doesn't warrant a full featuredoc. |
+
+## Experiment records
+
+The project explores alternatives rather than choosing upfront (`docs/ROADMAP.md`),
+which only works if exploration produces reviewable results instead of opinions.
+Every exploratory branch ends in an `experiment` record containing:
+
+1. **What was compared** — the options, and what was held constant.
+2. **Cost** — bytes moved, wall-clock, peak RSS, dependencies added.
+3. **Quality** — measured where measurable (PSNR / SSIM / LPIPS, stratified), shown
+   side by side where not.
+4. **Disclosure required** — what each option would force into the output description.
+5. **Verdict** — adopt, reject, or defer, and why.
+
+A "defer" verdict is a real result and should be recorded as one. The point is that a
+future agent can re-read the comparison rather than re-run it.
 
 ## Rules
 

@@ -43,5 +43,8 @@ disclosure propagates to the README and to any published output.
 
 | Date | Document | Subject |
 |---|---|---|
-| 2026-08-04 | [`2026-08-04-orbital-camera.md`](2026-08-04-orbital-camera.md) | Synthetic orbital camera over live GEO imagery — the core idea for matching the ORBIT aesthetic |
-| 2026-08-04 | [`2026-08-04-orbit-selection.md`](2026-08-04-orbit-selection.md) | Which orbit a hypothetical dedicated satellite should fly, and what that implies for source selection |
+| 2026-08-04 | [`2026-08-04-orbital-camera.md`](2026-08-04-orbital-camera.md) | Synthetic orbital camera over live GEO imagery — Track A's core idea |
+| 2026-08-04 | [`2026-08-04-orbit-selection.md`](2026-08-04-orbit-selection.md) | Which orbit dissolves the darkness problem, and what that implies for source selection |
+| 2026-08-04 | [`2026-08-04-time-compression.md`](2026-08-04-time-compression.md) | Playback rate, the speedup/interpolation invariant, and the 60-second mesoscale finding |
+| 2026-08-04 | [`2026-08-04-interpolation-and-upscaling.md`](2026-08-04-interpolation-and-upscaling.md) | Temporal and spatial synthesis methods, and the hold-out experiment that scores them |
+| 2026-08-04 | [`2026-08-04-night-side-compositing.md`](2026-08-04-night-side-compositing.md) | Four open options for the night side, with selection criteria |

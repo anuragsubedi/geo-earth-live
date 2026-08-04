@@ -21,8 +21,11 @@ Two facts are in tension:
    minutes latency (`docs/DATA_SOURCES.md`). LEO sources revisit a given point
    about every 12 hours.
 
-The inherited plan resolved this by abandoning the flyover and building a sped-up
-daily summary. That is a good product, but it is not the stated goal.
+The inherited plan resolved this by building a sped-up daily summary instead of a
+flyover. That is a good product and it remains fully in scope as **Track B** —
+"quasi-live" is rhetorical here, so time compression is a legitimate expression of
+the goal rather than a retreat from it (`docs/ROADMAP.md`). This document describes a
+*different* answer to the same problem, not a replacement for that one.
 
 ## The idea
 
@@ -164,8 +167,8 @@ arcs, which is also what makes the resolution budget work.
 | Option | Verdict |
 |---|---|
 | **Synthetic camera over live GEO texture** | **Chosen.** Matches the goal, exact motion, no frame interpolation in v1, uses the cadence GEO is good at. |
-| Real LEO imagery (VIIRS swaths) stitched into motion | Genuinely observed motion and 375 m detail, but push-broom strips are not a flyover, revisit is 12 h, and latency ~36 min. Keep as a separate track — it is a different, also-beautiful product. |
-| GEO daily summary, sped up | The inherited plan. Good product, well-scoped, but explicitly not the flyover. Retained as a parallel track; shares most infrastructure. |
+| Real LEO imagery (VIIRS swaths) stitched into motion | Genuinely observed motion and 375 m detail, but push-broom strips are not a flyover, revisit is 12 h, and latency ~36 min. **Track C** — a different, also-beautiful product, pursued in parallel. |
+| GEO daily summary, sped up | The inherited plan. **Track B**, pursued in parallel and sequenced *first* — it is the shortest path to moving pictures, and it carries the project's only analysis component. Shares most infrastructure with this. |
 | Frame-interpolate GEO to 30 fps in place | Produces a smooth *static* disk. Solves the wrong problem — smoothness was never what made ORBIT compelling. |
 | Wait for / build a real LEO video satellite | $10–80M and years. Out of scope, documented in `featuredocs/2026-08-04-orbit-selection.md`. |
 
