@@ -3,7 +3,7 @@
 **Single source of truth.** Read this first. Update it in the same commit as any
 change that alters status, a decision, or who is working on what.
 
-**Last updated:** 2026-08-04 (rev. 2) · **Phase:** P0 (documentation & environment) ·
+**Last updated:** 2026-08-04 (rev. 3) · **Phase:** P0 (documentation & environment) ·
 **Active plan:** none — [`2026-08-04-shared-core.md`](implementation_plans/2026-08-04-shared-core.md) is `PROPOSED`, awaiting sign-off
 
 ---
@@ -47,12 +47,17 @@ share.
   alternatives (GeoColor, upscaling, interpolation) restored as things to *evaluate*
   rather than discard. Mesoscale 60-second cadence measured. Three featuredocs added
   (time compression, interpolation/upscaling, night-side compositing).
+- **2026-08-04 (rev. 3)** — **First local-machine probe.** Fixed a defect in
+  `scripts/probe_env.py` that reported a broken local CA bundle as a total egress
+  block. All 23 hosts are OPEN locally, unblocking the D2 and D7 experiments. Local
+  disk is **13.3 GB free — tighter than the container's ~30 GB.**
 
 ---
 
 ## Key facts
 
-All **[measured]** figures trace to `logs/2026-08-04T153908Z-environment-probe.md`.
+Container figures trace to `logs/2026-08-04T153908Z-environment-probe.md`; local
+figures to `logs/2026-08-04T162813Z-environment-probe.md`.
 
 ### Data
 
@@ -60,8 +65,14 @@ All **[measured]** figures trace to `logs/2026-08-04T153908Z-environment-probe.m
   all anonymous on AWS S3, 10-minute full disk.
 - **Reachable LEO:** VIIRS on NOAA-21, NOAA-20, Suomi-NPP — 375 m I-bands,
   750 m M-bands, plus the day-night band for live city lights.
-- **Latency [measured]:** Himawari-9 **4.6 min**; GOES-19 **~8 min** from scan start
-  (~17 s after scan end); VIIRS M-band **~36 min**.
+- **Latency [measured]:** Himawari-9 **4.6 min** (**3.6 min** on the local re-probe);
+  GOES-19 **~8 min** from scan start (~17 s after scan end); VIIRS M-band **~36 min**.
+- **VIIRS DNB newest object was 249 min old [measured, local probe].** That number is
+  *not* established as publication latency — for a polar orbiter it may just be
+  orbital revisit, since DNB granules only exist over the night side. It matters
+  because D7's "live city lights" option depends on which it is. **Measure before
+  relying on it:** compare a granule's `c`-timestamp to its `d`/`t` observation time,
+  which separates the two. Until then, treat "live DNB" as unquantified.
 - **The coverage gap:** nothing reachable between roughly **20°W and 100°E** —
   Africa, Europe, the Middle East, India. That is Meteosat/FY-4 territory. It is
   the single most consequential constraint in the project (decision D2).
@@ -71,15 +82,31 @@ All **[measured]** figures trace to `logs/2026-08-04T153908Z-environment-probe.m
   mesoscale sequence is 48 s at 30 fps **with zero interpolation.** Sectors move to
   follow weather, so geolocation must be read per granule.
 - **Cheapest usable frames:** mesoscale C13 (0.31 MB), then Himawari-9 B13 (~11 MB,
-  bz2, 10 segments). **Most expensive:** GOES C02 at 376–406 MB.
+  bz2, 10 segments). **Most expensive:** GOES C02 — the observed range widens to
+  **318–414 MB** with the local probe (GOES-19 **413.74 MB**, GOES-18 **318.13 MB**
+  [measured]), above the 376–406 MB the shared-core plan quotes. Size varies with
+  scene compressibility, so **G1's pass threshold must be a fraction of the actual
+  file, not a fixed byte count.**
 
 ### Environment
 
 - **Egress is filtered in the cloud container.** `*.s3.amazonaws.com`, PyPI and
   GitHub are open. NOAA STAR CDN, NHC, EUMETSAT, NASA GIBS, DSCOVR/EPIC, Celestrak
-  and Natural Earth are **blocked by org policy**. Most should work locally.
+  and Natural Earth are **blocked by org policy**.
+- **Locally, nothing is blocked [measured].** All 23 probed hosts return 200,
+  including every host the container denies. The container blocklist is purely local
+  policy, not upstream availability. **This does not change the required path** —
+  production may run in the container, so S3 + PyPI remains the only guaranteed
+  substrate. It does mean the D2 and D7 experiments are runnable here today.
 - **The required path uses only S3 + PyPI.** Anything else is optional with a fallback.
 - Container: 4 cores, ~15 GB RAM, ~30 GB free disk, no ffmpeg, ephemeral.
+- Local **[measured]**: macOS 26.2 ARM64, 8 cores, 16 GB RAM, **13.3 GB free disk**,
+  ffmpeg 8.1 present, Python 3.14.2. **Local disk is tighter than the container's** —
+  scale cache budgets from the measured figure, never the larger of the two.
+- **A probe report is evidence only if its `tls_trust_store` fact resolved.** A TLS
+  verification failure is a broken CA bundle, not a block; the probe now says so
+  rather than reporting **BLOCKED**. Never disable verification to "fix" it — that
+  converts a real proxy denial into a false **OPEN**.
 
 ### Design
 
@@ -140,9 +167,10 @@ Each ends in a `logs/` experiment record. See `docs/ROADMAP.md` § Evaluation di
 |---|---|---|
 | **G1** — byte-range reads of C02 | active plan | Whether 0.5 km is affordable; honest camera altitude |
 | **Hold-out interpolation** | `featuredocs/…-interpolation-and-upscaling.md` | Which method ships, and its measured cost. **Highest-value single result available.** |
-| **Night-side four-way** | `featuredocs/…-night-side-compositing.md` | D7. Needs a local machine for the GeoColor arm. |
+| **Night-side four-way** | `featuredocs/…-night-side-compositing.md` | D7. **Now runnable** — GeoColor's host is OPEN on this local machine. |
 | **Playback rate ladder** | `featuredocs/…-time-compression.md` | Where the terminator stops reading as an event |
 | **Mesoscale continuity** | `featuredocs/…-time-compression.md` | Whether sector repositioning breaks 24 h sequences |
+| **DNB latency vs. revisit** | this file, § Data | Whether "live city lights" is viable for D7. Cheap; a prerequisite for the four-way's DNB arm |
 
 ---
 
@@ -153,11 +181,12 @@ colliding.
 
 | Module / task | Claimed by | Since | Status |
 |---|---|---|---|
-| `scripts/probe_env.py` | — | 2026-08-04 | **done** |
+| `scripts/probe_env.py` | — | 2026-08-04 | **done** — TLS-classification fix landed rev. 3 |
 | Documentation scaffold | — | 2026-08-04 | **done** |
 | G1 byte-range prototype | *unclaimed* | — | next up |
 | `src/geoearth/*` | *unclaimed* | — | blocked on G1 |
-| Night-side four-way experiment | *unclaimed* | — | **needs a local machine** (GeoColor arm) |
+| Night-side four-way experiment | *unclaimed* | — | **unblocked** — this local machine reaches every arm |
+| DNB latency vs. revisit | *unclaimed* | — | ready; cheap, gates the four-way's DNB arm |
 | Hold-out interpolation experiment | *unclaimed* | — | blocked on P2 (needs frames) |
 
 ---

@@ -9,11 +9,18 @@ you are in is the only one.**
 | | Cloud container | Local machine (VS Code / Cursor) |
 |---|---|---|
 | Trigger | Claude Code on the web / a Routine | Owner works locally with an IDE agent |
-| Platform | Linux x86-64 | macOS ARM (16 GB) expected |
-| Egress | **Policy-filtered proxy** — allowlist | Normal internet |
+| Platform | Linux x86-64 | macOS 26.2 ARM64 **[measured]** |
+| Egress | **Policy-filtered proxy** — allowlist | **Unfiltered — all 23 probed hosts OPEN [measured]** |
 | Persistence | **Ephemeral.** Container reclaimed after inactivity | Persistent |
-| Compute | 4 cores, ~15 GB RAM, ~30 GB free disk | Owner's machine |
-| ffmpeg | Not installed by default | Homebrew |
+| Compute | 4 cores, ~15 GB RAM, ~30 GB free disk | 8 cores, 16 GB RAM, **13.3 GB free disk [measured]** |
+| ffmpeg | Not installed by default | **8.1, installed [measured]** |
+
+Local figures **[measured]** on 2026-08-04 —
+[`logs/2026-08-04T162813Z-environment-probe.md`](../logs/2026-08-04T162813Z-environment-probe.md).
+
+> **Disk is the surprise: local is tighter, not roomier.** 13.3 GB free against the
+> container's ~30 GB. Every streaming and cache-budget rule below is *more* binding
+> here, not less. Do not treat "run it locally" as an escape from the disk budget.
 
 ### The rule that follows
 
@@ -34,8 +41,17 @@ Measured in the container on 2026-08-04
 `celestrak.org`, `gibs.earthdata.nasa.gov`, `epic.gsfc.nasa.gov`,
 `naturalearthdata.com`, `data.eumetsat.int`, `youtube.com`.
 
-Most of these are expected to work fine on a local machine. That asymmetry has
-three consequences, and they are the reason this file exists:
+**Confirmed on the local machine 2026-08-04** — every one of those ten hosts is
+**OPEN** here, along with all thirteen that were already open in the container
+(`logs/2026-08-04T162813Z-environment-probe.md`). The asymmetry is real and total:
+the container's blocklist is exactly the set of things a local run unlocks.
+
+That directly affects two open decisions: **D2** (EUMETSAT for Meteosat/MTG — the
+20°W–100°E coverage gap) and **D7** (the night-side four-way, whose GeoColor arm
+needs `cdn.star.nesdis.noaa.gov`). Both are runnable here *today*. Neither becomes
+a required-path dependency because of it — see consequence 1 below.
+
+That asymmetry has three consequences, and they are the reason this file exists:
 
 1. **The pipeline's required path must use only S3 + PyPI.** Anything else is an
    optional enhancement with a reachable fallback. This is what killed the
@@ -48,11 +64,25 @@ three consequences, and they are the reason this file exists:
 
 ### Distinguishing a block from a mistake
 
-- **`403` at CONNECT / no status at all** → egress policy denial.
+- **`403` at CONNECT** → egress policy denial.
 - **`404` from `*.s3.amazonaws.com`** → the host answered; the bucket name is wrong.
-- **TLS verification failure** → the tool is not reading the container's CA bundle
-  at `/root/.ccr/ca-bundle.crt`. Point it there. Never disable verification, never
-  unset `HTTPS_PROXY`.
+- **TLS verification failure** → **not a block.** A broken or missing CA bundle, and
+  it says nothing about reachability.
+  - *In the container:* the tool is not reading `/root/.ccr/ca-bundle.crt`. Point it there.
+  - *Locally:* a python.org framework build ships **no** CA bundle at its configured
+    `openssl_cafile` path, so every TLS connection fails. Use `certifi`,
+    `/etc/ssl/cert.pem`, or run `Install Certificates.command`.
+  - **Never disable verification**, never unset `HTTPS_PROXY`. Disabling verification
+    would turn a genuine MITM-proxy denial into a false **OPEN** — a worse error than
+    the one being fixed.
+
+> **This bit us.** Until 2026-08-04 `scripts/probe_env.py` classified *any* connection
+> failure as **BLOCKED**. On the local machine the missing CA bundle therefore produced
+> a report claiming all 23 hosts were blocked — including PyPI and S3, which is never
+> true anywhere. The probe now resolves a working trust store, classifies TLS-trust,
+> DNS, timeout and refusal separately from policy denial, and stamps a warning banner
+> across any report containing a TLS-trust failure. **A probe report is evidence only
+> if its `tls_trust_store` machine fact resolved.**
 
 ## First thing to do in any environment
 
@@ -74,8 +104,10 @@ Then read `PROJECT_STATE.md`.
 2. **No assumption that a host is reachable.** Fetching code fails with a message
    naming the host and pointing at this file, rather than a bare traceback.
 3. **No assumption about core count, RAM, or disk.** Read them; scale batch sizes
-   from them. The container has ~30 GB free — a day of GOES C02 at full rate would
-   not fit, so streaming and discarding is mandatory, not an optimization.
+   from them. The container has ~30 GB free and the local machine **13.3 GB
+   [measured]** — a day of GOES C02 at full rate fits in neither, so streaming and
+   discarding is mandatory, not an optimization. Scale from the *measured* figure;
+   never from the larger of the two.
 4. **UTC everywhere.** Satellite timestamps, S3 partitions and scan schedules are
    all UTC. Never format a local time into a path.
 5. **`ffmpeg` may be absent.** Detect it, and if the project needs it, prefer the
@@ -98,3 +130,7 @@ The repo is the only shared memory between agents and between environments.
 ## Revisions
 
 - **2026-08-04** — Created, from the container probe.
+- **2026-08-04 (rev. 2)** — First local-machine probe. All 23 hosts OPEN, confirming
+  the container blocklist is purely local policy. Recorded local compute and the
+  13.3 GB disk figure. Corrected the block-vs-mistake guidance after
+  `scripts/probe_env.py` misreported a missing local CA bundle as a total egress block.
